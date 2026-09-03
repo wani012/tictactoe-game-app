@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zerokaata-v1';
+const CACHE_NAME = 'furu-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
