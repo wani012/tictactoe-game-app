@@ -1,0 +1,18 @@
+{
+  "name": "FURUS - Zero Kaata Tic Tac Toe",
+  "short_name": "FURUS",
+  "description": "Modern animated FURUS Tic-Tac-Toe mobile game with Smart AI and Pass & Play.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090d16",
+  "theme_color": "#00f0ff",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

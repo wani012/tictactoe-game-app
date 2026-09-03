@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#090d16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="FURUS Zero Kaata - Modern Cyberpunk Tic-Tac-Toe Game with Smart AI and Pass & Play">
+  
+  <title>FURUS - Zero Kaata</title>
+  
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- Particle Confetti Canvas -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand">
+        <img src="./icon.svg" alt="FURUS Logo" class="brand-icon" style="width: 44px; height: 44px; border-radius: 12px; filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.45));">
+        <div>
+          <h1 class="brand-title">FURUS <span style="font-size: 16px; text-shadow: 0 0 10px #ffd700;">⚡</span></h1>
+          <p class="brand-subtitle">Zero Kaata Pro</p>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <button id="sound-toggle-btn" class="icon-btn" aria-label="Toggle Sound" title="Sound On/Off">🔊</button>
+        <button id="settings-btn" class="icon-btn" aria-label="Settings" title="Game Settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- User Profile Bar -->
+    <div id="user-bar" class="user-bar">
+      <div class="user-info">
+        <span>👤</span>
+        <span>Player: <strong id="user-display-name" class="user-name-highlight">Guest</strong></span>
+        <span id="user-display-email" style="opacity: 0.7; font-size: 11px;">(email)</span>
+      </div>
+      <button id="logout-btn" class="btn-logout" title="Logout">Logout</button>
+    </div>
+
+    <!-- Mode Selector -->
+    <div class="mode-bar">
+      <button class="mode-btn active" data-mode="ai">🤖 vs Bot</button>
+      <button class="mode-btn" data-mode="pvp">👥 Pass & Play</button>
+    </div>
+
+    <!-- AI Difficulty Chips -->
+    <div id="difficulty-bar" class="difficulty-bar">
+      <button class="diff-chip" data-diff="easy">Easy</button>
+      <button class="diff-chip" data-diff="medium">Medium</button>
+      <button class="diff-chip active" data-diff="impossible">Impossible</button>
+    </div>
+
+    <!-- Scoreboard Cards -->
+    <div class="scoreboard">
+      <div id="card-x" class="score-card player-x">
+        <div class="score-label"><span>✕</span> Player X</div>
+        <div id="score-x" class="score-value">0</div>
+      </div>
+      
+      <div class="score-card draw-card">
+        <div class="score-label">🤝 Ties</div>
+        <div id="score-draw" class="score-value">0</div>
+      </div>
+      
+      <div id="card-o" class="score-card player-o">
+        <div class="score-label"><span id="label-o">BOT</span> <span>○</span></div>
+        <div id="score-o" class="score-value">0</div>
+      </div>
+    </div>
+
+    <!-- Status Turn Banner -->
+    <div class="status-container">
+      <div class="status-badge">
+        <span id="status-dot" class="turn-dot x"></span>
+        <span id="status-text">Your Turn (X)</span>
+      </div>
+    </div>
+
+    <!-- Interactive Game Board -->
+    <div class="board-wrapper">
+      <div id="board-grid" class="board-grid">
+        <button class="cell" data-index="0" aria-label="Top Left"></button>
+        <button class="cell" data-index="1" aria-label="Top Center"></button>
+        <button class="cell" data-index="2" aria-label="Top Right"></button>
+        <button class="cell" data-index="3" aria-label="Middle Left"></button>
+        <button class="cell" data-index="4" aria-label="Center"></button>
+        <button class="cell" data-index="5" aria-label="Middle Right"></button>
+        <button class="cell" data-index="6" aria-label="Bottom Left"></button>
+        <button class="cell" data-index="7" aria-label="Bottom Center"></button>
+        <button class="cell" data-index="8" aria-label="Bottom Right"></button>
+      </div>
+      <svg id="strike-svg" class="strike-svg"></svg>
+    </div>
+
+    <!-- Bottom Controls -->
+    <div class="bottom-controls">
+      <button id="new-game-btn" class="btn-action btn-primary">
+        <span>🔄</span> New Round
+      </button>
+    </div>
+
+    <!-- Developer Credits & Contact -->
+    <footer class="dev-footer">
+      <span class="dev-tag">Developer</span>
+      <h4 class="dev-name">Furkan Farooq ⚡</h4>
+      <p class="dev-tagline">For more games &amp; custom websites:</p>
+      <div class="dev-contact-links">
+        <a href="tel:7889899325" class="contact-pill phone-pill">
+          <span>📞</span> Call: 7889899325
+        </a>
+        <a href="https://wa.me/917889899325?text=Hi%20Furkan,%20I%20played%20your%20FURUS%20game%20and%20want%20to%20discuss%20a%20game/website" target="_blank" rel="noopener" class="contact-pill wa-pill">
+          <span>💬</span> WhatsApp
+        </a>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Game Settings</h3>
+        <button id="close-modal-btn" class="icon-btn" style="width: 32px; height: 32px; font-size: 14px;">✕</button>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Your Symbol</div>
+          <div class="setting-sublabel">X goes first, O goes second</div>
+        </div>
+        <div class="symbol-select-group">
+          <button class="symbol-chip active x" data-symbol="X">X</button>
+          <button class="symbol-chip o" data-symbol="O">O</button>
+        </div>
+      </div>
+
+      <div class="setting-row" style="margin-top: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+        <div>
+          <div class="setting-label">Reset Scoreboard</div>
+          <div class="setting-sublabel">Clear all wins and draws</div>
+        </div>
+        <button id="reset-scores-btn" class="btn-action btn-secondary" style="padding: 8px 14px; font-size: 12px; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
+          Reset
+        </button>
+      </div>
+
+      <div class="setting-row" style="border-bottom: none; padding-top: 12px;">
+        <div>
+          <div class="setting-label" style="color: var(--neon-gold);">Need More Games / Websites?</div>
+          <div class="setting-sublabel">Furkan Farooq: 7889899325</div>
+        </div>
+        <a href="https://wa.me/917889899325?text=Hi%20Furkan,%20I%20want%20to%20discuss%20a%20game/website" target="_blank" rel="noopener" class="contact-pill wa-pill" style="padding: 4px 10px; font-size: 11px;">
+          💬 Chat
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Login Gate Overlay -->
+  <div id="login-overlay" class="login-overlay">
+    <div class="login-card">
+      <img src="./icon.svg" alt="FURUS Logo" class="login-logo">
+      <h2 class="login-title">FURUS ⚡ LOGIN</h2>
+      <p class="login-desc">Khelne ke liye apna Email & Name daalein</p>
+
+      <form id="login-form" class="login-form" onsubmit="return false;">
+        <div class="input-group">
+          <label for="player-name" class="input-label">Aapka Naam / Player Name</label>
+          <input type="text" id="player-name" class="input-field" placeholder="e.g. Rahul / Furqan" required autocomplete="name">
+        </div>
+
+        <div class="input-group">
+          <label for="player-email" class="input-label">Email Address</label>
+          <input type="email" id="player-email" class="input-field" placeholder="name@example.com" required autocomplete="email">
+          <span id="email-error" class="error-text">Kripya sahi email address daalein (e.g. name@gmail.com)</span>
+        </div>
+
+        <button type="submit" id="login-submit-btn" class="btn-login-submit">
+          <span>⚡</span> Enter Game
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script src="./game.js"></script>
+</body>
+</html>
