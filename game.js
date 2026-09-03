@@ -662,7 +662,7 @@ class AuthManager {
 
   checkSession() {
     try {
-      const savedUser = localStorage.getItem('furus_auth_user');
+      const savedUser = localStorage.getItem('furu_auth_user');
       if (savedUser) {
         this.currentUser = JSON.parse(savedUser);
         this.unlockApp();
@@ -718,7 +718,7 @@ class AuthManager {
     };
 
     try {
-      localStorage.setItem('furus_auth_user', JSON.stringify(this.currentUser));
+      localStorage.setItem('furu_auth_user', JSON.stringify(this.currentUser));
     } catch (e) {}
 
     // Celebration on login
@@ -731,7 +731,7 @@ class AuthManager {
     this.gameApp.sound.playClick();
     this.currentUser = null;
     try {
-      localStorage.removeItem('furus_auth_user');
+      localStorage.removeItem('furu_auth_user');
     } catch (e) {}
 
     this.nameInput.value = '';
