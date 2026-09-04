@@ -4,29 +4,24 @@ service cloud.firestore {
     
     // 👤 User Profiles & Live Player Tracking
     match /users/{userId} {
-      // Allow reading user profiles (for display names, live status & leaderboard)
+      // Allow reading user profiles (for display names, live status & rankings)
       allow read: if true;
       
       // Allow user to create and update their own document
-      // (Matches logged-in user's UID or allows authenticated users)
       allow write: if request.auth != null && (request.auth.uid == userId || request.resource.data.uid == request.auth.uid);
-      
-      // Allow simple username login if using client-side UID
-      allow create, update: if request.resource.data.name is string 
-                            && request.resource.data.coins is number;
+      allow create, update: if request.resource.data.displayName is string || request.resource.data.name is string;
     }
 
-    // 🏆 3-Day Tournament Leaderboard
-    match /tournament_leaderboard/{userId} {
+    // 🏆 Official Leaderboard (Strict Access Control: Only verified Google users)
+    match /leaderboard/{userId} {
       allow read: if true;
-      allow write: if request.auth != null && (request.auth.uid == userId || request.resource.data.userId == request.auth.uid);
-      allow create, update: if request.resource.data.isGuest == false;
+      allow write: if request.auth != null && request.auth.uid == userId && request.resource.data.isGoogleUser == true;
     }
 
-    // 📜 Completed Tournament Seasons Archive (Read-only for players, only Cloud Functions write)
-    match /tournaments/{seasonId} {
+    // 🏆 3-Day Tournament Cycles & Reigning Champion
+    match /tournaments/{cycleDoc} {
       allow read: if true;
-      allow write: if false; // Only Cloud Functions Admin SDK can write
+      allow write: if request.auth != null;
     }
   }
 }

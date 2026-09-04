@@ -1316,6 +1316,310 @@ body {
   padding: 0 10px;
 }
 
+/* ========================================================
+   ARENA BUTTON & TOURNAMENT ACTIVE STYLES
+   ======================================================== */
+.btn-arena {
+  padding: 5px 12px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(0, 240, 255, 0.2));
+  border: 1px solid var(--neon-cyan);
+  border-radius: 16px;
+  color: var(--neon-cyan);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+}
+
+.btn-arena:hover {
+  background: var(--neon-cyan);
+  color: #090d16;
+  box-shadow: 0 0 15px var(--neon-cyan-glow);
+}
+
+.tournament-active-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.15), rgba(255, 0, 127, 0.15));
+  border: 1px solid var(--neon-gold);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--neon-gold);
+  margin-bottom: 8px;
+  animation: tournamentPulse 2s infinite ease-in-out;
+  box-shadow: 0 0 14px rgba(255, 215, 0, 0.25);
+}
+
+@keyframes tournamentPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 215, 0, 0.2); }
+  50% { transform: scale(1.03); box-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
+}
+
+.count-tag {
+  background: var(--neon-gold);
+  color: #090d16;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+}
+
+/* ========================================================
+   REIGNING CHAMPION SPOTLIGHT BADGE (GOLDEN CYBER GLOW)
+   ======================================================== */
+.champion-spotlight-card {
+  position: relative;
+  background: radial-gradient(circle at 50% 0%, rgba(255, 215, 0, 0.22) 0%, rgba(13, 18, 28, 0.95) 75%);
+  border: 2px solid var(--neon-gold);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.35), inset 0 0 15px rgba(255, 215, 0, 0.15);
+  animation: championGlowPulse 2.5s infinite alternate ease-in-out;
+}
+
+@keyframes championGlowPulse {
+  0% {
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3), inset 0 0 10px rgba(255, 215, 0, 0.1);
+    border-color: rgba(255, 215, 0, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 35px rgba(255, 215, 0, 0.65), 0 0 15px rgba(255, 0, 127, 0.3), inset 0 0 20px rgba(255, 215, 0, 0.3);
+    border-color: #ffd700;
+  }
+}
+
+.champion-sparkle-fx {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 10%, transparent 20%),
+              radial-gradient(circle, rgba(255,215,0,0.12) 15%, transparent 30%);
+  background-size: 40px 40px, 60px 60px;
+  opacity: 0.6;
+  animation: sparkleShift 12s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes sparkleShift {
+  0% { transform: rotate(0deg) translate(0, 0); }
+  100% { transform: rotate(360deg) translate(20px, 20px); }
+}
+
+.champion-badge-icon {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 26px;
+  filter: drop-shadow(0 0 8px #ffd700);
+  animation: crownFloat 2s infinite ease-in-out;
+}
+
+@keyframes crownFloat {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-4px) rotate(5deg); }
+}
+
+.champion-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #090d16;
+  background: linear-gradient(90deg, #ffd700, #ffaa00);
+  padding: 3px 10px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.champion-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.champion-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--neon-gold);
+  object-fit: cover;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.champion-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+  letter-spacing: 0.5px;
+}
+
+.champion-score {
+  font-size: 11px;
+  color: var(--neon-gold);
+  font-weight: 700;
+}
+
+/* ========================================================
+   ARENA / POST-LOGIN MODE MODAL
+   ======================================================== */
+.mode-select-card {
+  max-width: 420px;
+  width: 95%;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 35px rgba(0, 240, 255, 0.2);
+}
+
+.mode-select-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0;
+}
+
+.mode-select-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.arena-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  position: relative;
+  transition: all 0.25s ease;
+  text-align: left;
+}
+
+.arena-tournament {
+  background: radial-gradient(circle at top right, rgba(255, 215, 0, 0.08) 0%, rgba(13, 18, 28, 0.8) 70%);
+  border-color: rgba(255, 215, 0, 0.35);
+}
+
+.arena-tournament:hover {
+  border-color: var(--neon-gold);
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.25);
+  transform: translateY(-2px);
+}
+
+.arena-practice {
+  background: radial-gradient(circle at top right, rgba(0, 240, 255, 0.06) 0%, rgba(13, 18, 28, 0.8) 70%);
+  border-color: rgba(0, 240, 255, 0.25);
+}
+
+.arena-practice:hover {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 6px 20px rgba(0, 240, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.arena-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255, 215, 0, 0.15);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  color: var(--neon-gold);
+  margin-bottom: 8px;
+}
+
+.practice-badge {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #10b981;
+}
+
+.arena-icon-wrap {
+  float: right;
+  font-size: 28px;
+}
+
+.arena-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.arena-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.arena-meta {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.meta-chip {
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.meta-label {
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.arena-action-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+}
+
+.arena-error-text {
+  color: #ef4444;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.lb-empty-state {
+  text-align: center;
+  padding: 24px 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.lb-empty-state span {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.player-avatar-small {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--neon-cyan);
+}
+
+
 
 
 
