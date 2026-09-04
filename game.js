@@ -552,6 +552,7 @@ class TicTacToeGame {
       this.sound.playDraw();
       this.vibrate([80, 50, 80]);
       if (window.walletManager) window.walletManager.recordDraw();
+      if (window.authManager) window.authManager.syncUserStatsToFirestore();
     } else {
       if (result === 'X') {
         this.scores.x++;
@@ -567,6 +568,14 @@ class TicTacToeGame {
         this.statusText.textContent = this.mode === 'ai' ? '🎉 You Won! (+35 🪙 +25 🏆)' : `🎉 Player ${result} Won! (+35 🪙)`;
         if (window.walletManager) window.walletManager.rewardWin();
 
+        // ☁️ Sync Match Win to Firestore Live Tracking
+        if (window.authManager) {
+          const winInc = (typeof firebase !== 'undefined' && firebase.firestore)
+            ? firebase.firestore.FieldValue.increment(1)
+            : 1;
+          window.authManager.syncUserStatsToFirestore({ matchesWon: winInc });
+        }
+
         // 💰 Monetization Boost: Show 2X Double Win Reward button
         if (this.doubleRewardBtn) {
           this.doubleRewardBtn.style.display = 'flex';
@@ -578,6 +587,11 @@ class TicTacToeGame {
         this.vibrate([150, 80, 200]);
         this.statusText.textContent = '🤖 Bot Won! (-10 🏆)';
         if (window.walletManager) window.walletManager.recordLoss();
+
+        // ☁️ Sync Match Loss to Firestore Live Tracking
+        if (window.authManager) {
+          window.authManager.syncUserStatsToFirestore();
+        }
       }
 
       this.highlightWinningCells(winData.combo);
@@ -723,6 +737,9 @@ class AuthManager {
   constructor(gameApp) {
     this.gameApp = gameApp;
     this.currentUser = null;
+    this.auth = null;
+    this.db = null;
+    this.hasFirebaseConfig = false;
 
     this.loginOverlay = document.getElementById('login-overlay');
     this.loginForm = document.getElementById('login-form');
@@ -732,17 +749,44 @@ class AuthManager {
     this.displayName = document.getElementById('user-display-name');
     this.displayEmail = document.getElementById('user-display-email');
     this.logoutBtn = document.getElementById('logout-btn');
+    this.googleLoginBtn = document.getElementById('google-login-btn');
 
     this.init();
   }
 
   init() {
+    this.initFirebase();
     this.checkSession();
     this.bindEvents();
   }
 
+  initFirebase() {
+    if (typeof window.firebase !== 'undefined' && window.firebaseConfig && window.firebaseConfig.apiKey && window.firebaseConfig.apiKey !== "YOUR_API_KEY") {
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(window.firebaseConfig);
+        }
+        this.auth = firebase.auth();
+        this.db = firebase.firestore();
+        window.db = this.db;
+        window.firebaseAuth = this.auth;
+        this.hasFirebaseConfig = true;
+        console.log("🔥 Firebase Auth & Cloud Firestore initialized successfully!");
+
+        // Real-time Firebase Authentication listener
+        this.auth.onAuthStateChanged((user) => {
+          if (user) {
+            this.handleFirebaseUserSignedIn(user);
+          }
+        });
+      } catch (err) {
+        console.warn("Firebase initialization skipped/error:", err);
+      }
+    }
+  }
+
   isLoggedIn() {
-    return !!(this.currentUser && this.currentUser.email);
+    return !!(this.currentUser && (this.currentUser.email || this.currentUser.uid));
   }
 
   checkSession() {
@@ -766,19 +810,31 @@ class AuthManager {
   }
 
   bindEvents() {
-    this.loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.handleLogin();
-    });
+    if (this.loginForm) {
+      this.loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleLogin();
+      });
+    }
 
-    this.logoutBtn.addEventListener('click', () => {
-      this.handleLogout();
-    });
+    if (this.googleLoginBtn) {
+      this.googleLoginBtn.addEventListener('click', () => {
+        this.handleGoogleLogin();
+      });
+    }
 
-    this.emailInput.addEventListener('input', () => {
-      this.emailInput.classList.remove('error');
-      this.emailError.classList.remove('visible');
-    });
+    if (this.logoutBtn) {
+      this.logoutBtn.addEventListener('click', () => {
+        this.handleLogout();
+      });
+    }
+
+    if (this.emailInput) {
+      this.emailInput.addEventListener('input', () => {
+        this.emailInput.classList.remove('error');
+        if (this.emailError) this.emailError.classList.remove('visible');
+      });
+    }
   }
 
   validateEmail(email) {
@@ -786,7 +842,117 @@ class AuthManager {
     return re.test(String(email).toLowerCase());
   }
 
-  handleLogin() {
+  async handleGoogleLogin() {
+    if (!this.hasFirebaseConfig || !this.auth) {
+      this.showFirebaseConfigNotice();
+      return;
+    }
+
+    try {
+      if (this.googleLoginBtn) {
+        this.googleLoginBtn.disabled = true;
+        this.googleLoginBtn.style.opacity = '0.7';
+      }
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      await this.auth.signInWithPopup(provider);
+    } catch (err) {
+      console.error("Google Sign-In Error:", err);
+      if (err.code !== 'auth/popup-closed-by-user') {
+        alert("Google Sign-In Error: " + err.message);
+      }
+    } finally {
+      if (this.googleLoginBtn) {
+        this.googleLoginBtn.disabled = false;
+        this.googleLoginBtn.style.opacity = '1';
+      }
+    }
+  }
+
+  showFirebaseConfigNotice() {
+    alert(
+      "⚡ Firebase Configuration Needed:\n\n" +
+      "1. Apne Firebase Console (console.firebase.google.com) se config keys copy karein.\n" +
+      "2. 'firebase-config.js' file me paste karein.\n\n" +
+      "Tab tak aap neeche Username & Email daal kar khel sakte hain!"
+    );
+  }
+
+  async handleFirebaseUserSignedIn(user) {
+    const displayName = user.displayName || user.email.split('@')[0] || 'Player';
+    this.currentUser = {
+      uid: user.uid,
+      name: displayName,
+      email: user.email,
+      photoURL: user.photoURL || null,
+      isGoogle: true,
+      loggedInAt: new Date().toISOString()
+    };
+
+    try {
+      localStorage.setItem('furu_auth_user', JSON.stringify(this.currentUser));
+    } catch (e) {}
+
+    // Load or create user document in Firestore
+    await this.loadAndSyncUserFromFirestore(user);
+
+    this.gameApp.sound.playWin();
+    this.gameApp.confetti.blast();
+    this.unlockApp();
+
+    if (window.leaderboardManager) {
+      window.leaderboardManager.render();
+      window.leaderboardManager.checkForWinnerReward();
+      window.leaderboardManager.syncScoreToDatabase();
+    }
+  }
+
+  async loadAndSyncUserFromFirestore(firebaseUser) {
+    if (!this.db) return;
+    try {
+      const userRef = this.db.collection('users').doc(firebaseUser.uid);
+      const doc = await userRef.get();
+
+      if (doc.exists) {
+        const data = doc.data();
+        // Restore user's coins & stats from cloud database
+        if (data.coins !== undefined && window.walletManager) {
+          window.walletManager.coins = data.coins;
+          window.walletManager.trophies = data.trophies || 0;
+          window.walletManager.matchesCompleted = data.matchesPlayed || 0;
+          window.walletManager.save();
+        }
+        // Update lastActive timestamp & online status
+        await userRef.set({
+          name: this.currentUser.name,
+          email: this.currentUser.email,
+          online: true,
+          lastActive: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        console.log("☁️ User profile restored from Firestore:", firebaseUser.uid);
+      } else {
+        // First-time user: Create new document with 100 coins
+        await userRef.set({
+          uid: firebaseUser.uid,
+          name: this.currentUser.name,
+          email: this.currentUser.email,
+          coins: 100,
+          trophies: 0,
+          matchesPlayed: 0,
+          matchesWon: 0,
+          online: true,
+          isGuest: false,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          lastActive: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        console.log("🆕 New player document created in Firestore:", firebaseUser.uid);
+      }
+    } catch (e) {
+      console.warn("Firestore user sync error:", e);
+    }
+  }
+
+  async handleLogin() {
     const name = this.nameInput.value.trim();
     const email = this.emailInput.value.trim();
 
@@ -797,14 +963,17 @@ class AuthManager {
 
     if (!this.validateEmail(email)) {
       this.emailInput.classList.add('error');
-      this.emailError.classList.add('visible');
+      if (this.emailError) this.emailError.classList.add('visible');
       this.emailInput.focus();
       return;
     }
 
+    const clientUid = 'user_' + btoa(email.toLowerCase()).replace(/=/g, '');
     this.currentUser = {
+      uid: clientUid,
       name: name,
       email: email,
+      isGoogle: false,
       loggedInAt: new Date().toISOString()
     };
 
@@ -817,6 +986,9 @@ class AuthManager {
     this.gameApp.confetti.blast();
     this.unlockApp();
 
+    // Sync to Firestore if configured
+    await this.syncUserStatsToFirestore();
+
     // Trigger leaderboard update & reward check
     if (window.leaderboardManager) {
       window.leaderboardManager.render();
@@ -825,15 +997,64 @@ class AuthManager {
     }
   }
 
-  handleLogout() {
+  // Real-time Firestore Document Sync (Called on match win/loss and coin rewards)
+  async syncUserStatsToFirestore(extraData = {}) {
+    if (!this.db || !this.currentUser) return;
+
+    try {
+      const uid = this.currentUser.uid || this.currentUser.email;
+      const userRef = this.db.collection('users').doc(uid);
+
+      const updatePayload = {
+        uid: uid,
+        name: this.currentUser.name,
+        email: this.currentUser.email,
+        coins: window.walletManager ? window.walletManager.coins : 100,
+        trophies: window.walletManager ? window.walletManager.trophies : 0,
+        matchesPlayed: window.walletManager ? window.walletManager.matchesCompleted : 0,
+        online: true,
+        lastActive: (typeof firebase !== 'undefined' && firebase.firestore) 
+          ? firebase.firestore.FieldValue.serverTimestamp() 
+          : new Date(),
+        ...extraData
+      };
+
+      await userRef.set(updatePayload, { merge: true });
+      console.log("☁️ Firestore Live Player Sync OK for:", uid);
+    } catch (e) {
+      console.warn("Firestore syncUserStats error:", e);
+    }
+  }
+
+  async handleLogout() {
     this.gameApp.sound.playClick();
+
+    // Set offline status in Firestore before signout
+    if (this.db && this.currentUser) {
+      try {
+        const uid = this.currentUser.uid || this.currentUser.email;
+        await this.db.collection('users').doc(uid).set({
+          online: false,
+          lastActive: (typeof firebase !== 'undefined' && firebase.firestore) 
+            ? firebase.firestore.FieldValue.serverTimestamp() 
+            : new Date()
+        }, { merge: true });
+      } catch (e) {}
+    }
+
+    if (this.auth && this.auth.currentUser) {
+      try {
+        await this.auth.signOut();
+      } catch (e) {}
+    }
+
     this.currentUser = null;
     try {
       localStorage.removeItem('furu_auth_user');
     } catch (e) {}
 
-    this.nameInput.value = '';
-    this.emailInput.value = '';
+    if (this.nameInput) this.nameInput.value = '';
+    if (this.emailInput) this.emailInput.value = '';
     this.lockApp();
     this.gameApp.resetGame();
 
@@ -1193,6 +1414,11 @@ class RealAdManager {
       }
       this.showToast('🎉 Double Reward: +35 Extra Coins Added!');
     }
+
+    // ☁️ Sync updated coins to Firestore Live Tracking
+    if (window.authManager) {
+      window.authManager.syncUserStatsToFirestore();
+    }
   }
 
   // Grant coins, persist to localStorage, update UI and celebrate
@@ -1208,6 +1434,11 @@ class RealAdManager {
     // 1. Credit wallet & save to localStorage exactly once (+50)
     if (window.walletManager) {
       window.walletManager.creditAdReward();
+    }
+
+    // ☁️ Sync updated coins to Firestore Live Tracking
+    if (window.authManager) {
+      window.authManager.syncUserStatsToFirestore();
     }
 
     // 2. Audio & Confetti celebration

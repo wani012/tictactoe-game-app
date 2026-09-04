@@ -25,7 +25,13 @@
   
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=9.0">
+  <link rel="stylesheet" href="./style.css?v=10.0">
+
+  <!-- Firebase SDK v10 (Compat version for Browser/Vanilla JS) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+  <script src="./firebase-config.js"></script>
 
   <!-- Monetag Real In-App / Rewarded SDK (Defines window.show_11722361) -->
   <script src="https://libtl.com/sdk.js" data-zone="11722361" data-sdk="show_11722361"></script>
@@ -37,7 +43,7 @@
     if ('caches' in window) {
       caches.keys().then(function(names) {
         names.forEach(function(n) {
-          if (n !== 'furu-v12-monetization-boost') caches.delete(n);
+          if (n !== 'furu-v13-firebase-sync') caches.delete(n);
         });
       });
     }
@@ -217,7 +223,22 @@
     <div class="login-card">
       <img src="./icon.svg" alt="FURU Logo" class="login-logo">
       <h2 class="login-title">FURU ⚡ LOGIN</h2>
-      <p class="login-desc">Khelne ke liye apna Email & Name daalein</p>
+      <p class="login-desc">Khelne ke liye Google ya Username se login karein</p>
+
+      <!-- 1-Click Google Sign-In -->
+      <button type="button" id="google-login-btn" class="btn-google-login">
+        <svg class="google-icon-svg" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.36 7.34 24 12 24z"/>
+          <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.97 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.27 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+        </svg>
+        <span>Sign in with Google</span>
+      </button>
+
+      <div class="login-divider">
+        <span>OR CONTINUE WITH USERNAME</span>
+      </div>
 
       <form id="login-form" class="login-form" onsubmit="return false;">
         <div class="input-group">
@@ -332,6 +353,6 @@
     </div>
   </div>
 
-  <script src="./game.js?v=9.0"></script>
+  <script src="./game.js?v=10.0"></script>
 </body>
 </html>
