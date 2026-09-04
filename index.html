@@ -25,7 +25,7 @@
   
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=8.0">
+  <link rel="stylesheet" href="./style.css?v=9.0">
 
   <!-- Monetag Real In-App / Rewarded SDK (Defines window.show_11722361) -->
   <script src="https://libtl.com/sdk.js" data-zone="11722361" data-sdk="show_11722361"></script>
@@ -37,7 +37,7 @@
     if ('caches' in window) {
       caches.keys().then(function(names) {
         names.forEach(function(n) {
-          if (n !== 'furu-v10-50coins') caches.delete(n);
+          if (n !== 'furu-v12-monetization-boost') caches.delete(n);
         });
       });
     }
@@ -149,6 +149,9 @@
       <button id="new-game-btn" class="btn-action btn-primary">
         <span>🔄</span> New Round
       </button>
+      <button id="double-reward-btn" class="btn-action btn-double-reward" style="display: none;">
+        <span>⚡</span> Claim 2X Coins (+35 🪙) 🎬
+      </button>
     </div>
 
     <!-- Developer Credits & Contact -->
@@ -239,7 +242,7 @@
   <div id="coins-modal" class="modal-overlay">
     <div class="modal-card coin-modal-card">
       <div class="modal-header">
-        <h3 class="modal-title" style="color: var(--neon-gold);">🪙 Out of Coins!</h3>
+        <h3 class="modal-title" style="color: var(--neon-gold);">🪙 Coin Wallet &amp; Free Rewards</h3>
         <button id="close-coins-btn" class="icon-btn" aria-label="Close">✕</button>
       </div>
       <div class="coin-modal-body">
@@ -329,6 +332,6 @@
     </div>
   </div>
 
-  <script src="./game.js?v=8.0"></script>
+  <script src="./game.js?v=9.0"></script>
 </body>
 </html>

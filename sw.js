@@ -1,9 +1,9 @@
-const CACHE_NAME = 'furu-v11-tournament-rewards';
+const CACHE_NAME = 'furu-v12-monetization-boost';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=8.0',
-  './game.js?v=8.0',
+  './style.css?v=9.0',
+  './game.js?v=9.0',
   './manifest.json',
   './icon.svg'
 ];

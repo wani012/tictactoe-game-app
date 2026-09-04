@@ -1222,5 +1222,42 @@ body {
   color: var(--text-muted);
 }
 
+/* ========================================================
+   2X DOUBLE WIN REWARD BUTTON (MONETIZATION BOOST)
+   ======================================================== */
+.btn-double-reward {
+  width: 100%;
+  margin-top: 8px;
+  background: linear-gradient(135deg, #ff007f 0%, #ffaa00 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(255, 0, 127, 0.4);
+  animation: doubleWinPulse 1.5s infinite alternate ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+@keyframes doubleWinPulse {
+  0% { transform: scale(0.98); box-shadow: 0 4px 15px rgba(255, 0, 127, 0.35); }
+  100% { transform: scale(1.02); box-shadow: 0 6px 25px rgba(255, 170, 0, 0.65); }
+}
+
+.btn-double-reward:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  box-shadow: none;
+  animation: none;
+  cursor: not-allowed;
+}
+
+
 
 

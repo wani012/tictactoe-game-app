@@ -198,6 +198,7 @@ class TicTacToeGame {
     this.settingsModal = document.getElementById('settings-modal');
     this.resetScoresBtn = document.getElementById('reset-scores-btn');
     this.symbolChips = document.querySelectorAll('.symbol-chip');
+    this.doubleRewardBtn = document.getElementById('double-reward-btn');
   }
 
   loadStorage() {
@@ -257,6 +258,12 @@ class TicTacToeGame {
       this.resetGame();
     });
 
+    if (this.doubleRewardBtn) {
+      this.doubleRewardBtn.addEventListener('click', () => {
+        this.handleDoubleRewardClick();
+      });
+    }
+
     this.soundToggleBtn.addEventListener('click', () => {
       this.sound.enabled = !this.sound.enabled;
       this.soundToggleBtn.textContent = this.sound.enabled ? '🔊' : '🔇';
@@ -300,6 +307,33 @@ class TicTacToeGame {
         this.resetGame();
       });
     });
+  }
+
+  handleDoubleRewardClick() {
+    this.sound.playClick();
+    if (!this.doubleRewardBtn) return;
+    this.doubleRewardBtn.disabled = true;
+    this.doubleRewardBtn.innerHTML = '<span>⏳</span> Loading 2X Sponsor Ad...';
+
+    if (window.realAdManager) {
+      window.realAdManager.showDoubleRewardAd((granted) => {
+        if (granted) {
+          if (window.walletManager) {
+            window.walletManager.coins += 35;
+            window.walletManager.save();
+          }
+          this.confetti.blast();
+          this.sound.playWin();
+          this.doubleRewardBtn.innerHTML = '<span>✅</span> 2X Coins Claimed (+35 🪙)!';
+          if (window.realAdManager.showToast) {
+            window.realAdManager.showToast('🎉 Double Win: +35 Extra Coins Added!');
+          }
+        } else {
+          this.doubleRewardBtn.disabled = false;
+          this.doubleRewardBtn.innerHTML = '<span>⚡</span> Claim 2X Coins (+35 🪙) 🎬';
+        }
+      });
+    }
   }
 
   setMode(mode) {
@@ -532,6 +566,13 @@ class TicTacToeGame {
         this.vibrate([100, 50, 100, 50, 150]);
         this.statusText.textContent = this.mode === 'ai' ? '🎉 You Won! (+35 🪙 +25 🏆)' : `🎉 Player ${result} Won! (+35 🪙)`;
         if (window.walletManager) window.walletManager.rewardWin();
+
+        // 💰 Monetization Boost: Show 2X Double Win Reward button
+        if (this.doubleRewardBtn) {
+          this.doubleRewardBtn.style.display = 'flex';
+          this.doubleRewardBtn.disabled = false;
+          this.doubleRewardBtn.innerHTML = '<span>⚡</span> Claim 2X Coins (+35 🪙) 🎬';
+        }
       } else {
         this.sound.playLose();
         this.vibrate([150, 80, 200]);
@@ -550,6 +591,15 @@ class TicTacToeGame {
     if (window.walletManager) {
       window.walletManager.matchesCompleted++;
       window.walletManager.save();
+
+      // 💰 Monetization Boost: Automatically show interstitial ad every 2 completed matches
+      if (window.walletManager.matchesCompleted % 2 === 0) {
+        setTimeout(() => {
+          if (window.realAdManager) {
+            window.realAdManager.showInterstitial();
+          }
+        }, 1200);
+      }
     }
   }
 
@@ -630,6 +680,10 @@ class TicTacToeGame {
     this.isAiThinking = false;
     this.currentTurn = 'X';
     this.strikeSvg.innerHTML = '';
+
+    if (this.doubleRewardBtn) {
+      this.doubleRewardBtn.style.display = 'none';
+    }
 
     this.cells.forEach(c => {
       c.className = 'cell';
@@ -1024,11 +1078,21 @@ class RealAdManager {
   // Window Focus & Visibility Change Listener
   bindVisibilityAndFocusListeners() {
     const handleUserReturn = () => {
-      const isPending = this.isWatchingAd || localStorage.getItem('furu_ad_watching') === 'true';
-      if (!isPending) return;
-
       const clickTime = parseInt(localStorage.getItem('furu_ad_click_time') || '0', 10);
       const elapsed = Date.now() - clickTime;
+
+      // Check 2X Double Win Reward state
+      const isDoublePending = this.isWatchingDoubleReward || localStorage.getItem('furu_double_reward_pending') === 'true';
+      if (isDoublePending) {
+        if (elapsed >= 2500) {
+          this.grantDoubleReward();
+        }
+        return;
+      }
+
+      // Check standard Rewarded Video state (+50 coins)
+      const isPending = this.isWatchingAd || localStorage.getItem('furu_ad_watching') === 'true';
+      if (!isPending) return;
 
       // Verify user actually switched and stayed on the ad tab for at least 2.5s
       if (elapsed >= 2500) {
@@ -1046,6 +1110,19 @@ class RealAdManager {
 
   // If user on mobile had a navigation/reload and came back via back button
   checkPendingRewardOnLoad() {
+    const isDoublePending = localStorage.getItem('furu_double_reward_pending') === 'true';
+    if (isDoublePending) {
+      const clickTime = parseInt(localStorage.getItem('furu_ad_click_time') || '0', 10);
+      const elapsed = Date.now() - clickTime;
+      if (elapsed >= 2500) {
+        setTimeout(() => this.grantDoubleReward(), 600);
+      } else {
+        localStorage.removeItem('furu_double_reward_pending');
+        localStorage.removeItem('furu_ad_click_time');
+      }
+      return;
+    }
+
     const isPending = localStorage.getItem('furu_ad_watching') === 'true';
     if (!isPending) return;
 
@@ -1059,6 +1136,62 @@ class RealAdManager {
     } else {
       localStorage.removeItem('furu_ad_watching');
       localStorage.removeItem('furu_ad_click_time');
+    }
+  }
+
+  // Double Win (+35 🪙) Ad Trigger
+  showDoubleRewardAd(callback) {
+    this.isWatchingDoubleReward = true;
+    this.pendingDoubleCallback = callback;
+    localStorage.setItem('furu_double_reward_pending', 'true');
+    localStorage.setItem('furu_ad_click_time', Date.now().toString());
+
+    this.showToast('🎬 Opening Sponsor Ad to Double Win (+35 🪙)...');
+
+    const zoneId = this.zoneId;
+    const monetagSdkFunction = window[`show_${zoneId}`] || window.show_11722361;
+
+    let adOpened = false;
+    if (typeof monetagSdkFunction === 'function') {
+      try {
+        const adPromise = monetagSdkFunction();
+        adOpened = true;
+        if (adPromise && typeof adPromise.then === 'function') {
+          adPromise
+            .then(() => {
+              this.grantDoubleReward();
+            })
+            .catch((err) => {
+              console.warn('Monetag double reward promise closed:', err);
+            });
+        }
+      } catch (e) {
+        console.warn('Monetag function error:', e);
+      }
+    }
+
+    if (!adOpened) {
+      window.open(`https://alwingulla.com/88/tag.min.js?zone=${zoneId}`, '_blank');
+    }
+  }
+
+  grantDoubleReward() {
+    const isPending = this.isWatchingDoubleReward || localStorage.getItem('furu_double_reward_pending') === 'true';
+    if (!isPending) return;
+
+    this.isWatchingDoubleReward = false;
+    localStorage.removeItem('furu_double_reward_pending');
+    localStorage.removeItem('furu_ad_click_time');
+
+    if (this.pendingDoubleCallback) {
+      this.pendingDoubleCallback(true);
+      this.pendingDoubleCallback = null;
+    } else {
+      if (window.walletManager) {
+        window.walletManager.coins += 35;
+        window.walletManager.save();
+      }
+      this.showToast('🎉 Double Reward: +35 Extra Coins Added!');
     }
   }
 
