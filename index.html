@@ -25,7 +25,7 @@
   
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=6.0">
+  <link rel="stylesheet" href="./style.css?v=7.0">
 
   <!-- Monetag Real In-App / Rewarded SDK (Defines window.show_11722361) -->
   <script src="https://libtl.com/sdk.js" data-zone="11722361" data-sdk="show_11722361"></script>
@@ -37,7 +37,7 @@
     if ('caches' in window) {
       caches.keys().then(function(names) {
         names.forEach(function(n) {
-          if (n !== 'furu-v9-focus-flow') caches.delete(n);
+          if (n !== 'furu-v10-50coins') caches.delete(n);
         });
       });
     }
@@ -253,12 +253,12 @@
 
         <div class="ad-offer-card">
           <div class="ad-offer-tag">🎁 FREE REWARD OFFER</div>
-          <h4 class="ad-offer-title">Watch a short video to get 100 Free Coins!</h4>
-          <p class="ad-offer-subtitle">Ek chhota 15s sponsor video ad dekhein aur turant apne wallet me paayein:</p>
-          <div class="reward-highlight">+100 FREE COINS 🪙</div>
+          <h4 class="ad-offer-title">Watch a short video to get 50 Free Coins!</h4>
+          <p class="ad-offer-subtitle">Ek chhota sponsor ad dekhein aur turant apne wallet me paayein:</p>
+          <div class="reward-highlight">+50 FREE COINS 🪙</div>
           
           <button id="watch-rewarded-ad-btn" class="btn-action btn-gold-reward">
-            <span>🎬</span> Watch Video Ad (+100 🪙)
+            <span>🎬</span> Watch Video Ad (+50 🪙)
           </button>
         </div>
       </div>
@@ -300,6 +300,6 @@
     </div>
   </div>
 
-  <script src="./game.js?v=6.0"></script>
+  <script src="./game.js?v=7.0"></script>
 </body>
 </html>

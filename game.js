@@ -795,7 +795,7 @@ class WalletManager {
     this.TROPHY_WIN = 25;    // +25 Trophies on win
     this.TROPHY_DRAW = 5;    // +5 Trophies on draw
     this.TROPHY_LOSS = 10;   // -10 Trophies on loss (min 0)
-    this.AD_REWARD = 100;    // +100 Coins for watching rewarded video
+    this.AD_REWARD = 50;     // +50 Coins for watching rewarded ad (exact 50)
 
     this.coinBalanceEl = document.getElementById('coin-balance');
     this.trophyCountEl = document.getElementById('trophy-count');
@@ -913,11 +913,7 @@ class WalletManager {
         this.gameApp.sound.playClick();
         this.hideOutOfCoinsModal();
         if (window.adMobManager) {
-          window.adMobManager.showRewardedVideo(() => {
-            this.creditAdReward();
-            this.gameApp.sound.playWin();
-            this.gameApp.confetti.blast();
-          });
+          window.adMobManager.showRewardedVideo();
         }
       });
     }
@@ -1032,16 +1028,17 @@ class RealAdManager {
 
   // Grant coins, persist to localStorage, update UI and celebrate
   grantReward(triggerSource) {
-    console.log(`🎉 Granting +100 Coins reward (source: ${triggerSource})`);
+    const isPending = this.isWatchingAd || localStorage.getItem('furu_ad_watching') === 'true';
+    if (!isPending) return;
+
+    console.log(`🎉 Granting +50 Coins reward (source: ${triggerSource})`);
     this.isWatchingAd = false;
     localStorage.removeItem('furu_ad_watching');
     localStorage.removeItem('furu_ad_click_time');
 
-    // 1. Credit wallet & save to localStorage
+    // 1. Credit wallet & save to localStorage exactly once (+50)
     if (window.walletManager) {
       window.walletManager.creditAdReward();
-      window.walletManager.save();
-      window.walletManager.updateUI();
     }
 
     // 2. Audio & Confetti celebration
@@ -1052,11 +1049,10 @@ class RealAdManager {
       this.gameApp.confetti.blast();
     }
 
-    // 3. User requested exact toast
-    this.showToast('🎉 Reward Claimed: +100 Coins added!');
+    // 3. User requested exact toast: +50 Coins added!
+    this.showToast('🎉 Reward Claimed: +50 Coins added!');
 
     if (this.pendingReward) {
-      this.pendingReward({ amount: 100, type: 'coins' });
       this.pendingReward = null;
     }
   }
