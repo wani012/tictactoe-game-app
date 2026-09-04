@@ -332,6 +332,18 @@ class TicTacToeGame {
       return;
     }
 
+    // Deduct entry fee on first move of the match
+    if (!this.roundStarted) {
+      if (window.walletManager && !window.walletManager.canAffordMatch()) {
+        window.walletManager.showOutOfCoinsModal();
+        return;
+      }
+      if (window.walletManager) {
+        window.walletManager.deductEntryFee();
+      }
+      this.roundStarted = true;
+    }
+
     this.makeMove(index, this.currentTurn);
 
     if (!this.isGameOver && this.mode === 'ai' && this.currentTurn === this.aiSymbol) {
@@ -498,12 +510,14 @@ class TicTacToeGame {
 
   handleGameEnd(result, winData = null) {
     this.isGameOver = true;
+    this.roundStarted = false;
 
     if (result === 'draw') {
       this.scores.draw++;
-      this.statusText.textContent = "It's a Draw!";
+      this.statusText.textContent = "It's a Draw! (+5 🏆)";
       this.sound.playDraw();
       this.vibrate([80, 50, 80]);
+      if (window.walletManager) window.walletManager.recordDraw();
     } else {
       if (result === 'X') {
         this.scores.x++;
@@ -516,11 +530,13 @@ class TicTacToeGame {
         this.confetti.blast();
         this.sound.playWin();
         this.vibrate([100, 50, 100, 50, 150]);
-        this.statusText.textContent = this.mode === 'ai' ? '🎉 You Won!' : `🎉 Player ${result} Won!`;
+        this.statusText.textContent = this.mode === 'ai' ? '🎉 You Won! (+35 🪙 +25 🏆)' : `🎉 Player ${result} Won! (+35 🪙)`;
+        if (window.walletManager) window.walletManager.rewardWin();
       } else {
         this.sound.playLose();
         this.vibrate([150, 80, 200]);
-        this.statusText.textContent = '🤖 Bot Won! Better luck!';
+        this.statusText.textContent = '🤖 Bot Won! (-10 🏆)';
+        if (window.walletManager) window.walletManager.recordLoss();
       }
 
       this.highlightWinningCells(winData.combo);
@@ -530,6 +546,20 @@ class TicTacToeGame {
     this.saveStorage();
     this.updateScoreboard();
     this.statusDot.style.display = 'none';
+
+    // Interstitial Ad Trigger: Every 3 completed matches
+    if (window.walletManager) {
+      window.walletManager.matchesCompleted++;
+      window.walletManager.save();
+      const count = window.walletManager.matchesCompleted;
+      if (count > 0 && count % 3 === 0) {
+        setTimeout(() => {
+          if (window.adMobManager) {
+            window.adMobManager.showInterstitial();
+          }
+        }, 1200);
+      }
+    }
   }
 
   highlightWinningCells(combo) {
@@ -598,6 +628,12 @@ class TicTacToeGame {
   }
 
   resetGame() {
+    if (window.walletManager && !window.walletManager.canAffordMatch()) {
+      window.walletManager.showOutOfCoinsModal();
+      return;
+    }
+
+    this.roundStarted = false;
     this.board = Array(9).fill('');
     this.isGameOver = false;
     this.isAiThinking = false;
@@ -753,10 +789,452 @@ class AuthManager {
   }
 }
 
+// ==========================================================
+// 1. VIRTUAL COIN WALLET MANAGER
+// ==========================================================
+class WalletManager {
+  constructor(gameApp) {
+    this.gameApp = gameApp;
+    this.coins = 100; // Default wallet starting balance
+    this.trophies = 0;
+    this.matchesCompleted = 0;
+
+    this.MATCH_FEE = 20;     // 20 coins entry fee
+    this.WIN_REWARD = 35;    // 35 coins reward for winning (+15 net gain)
+    this.TROPHY_WIN = 25;    // +25 Trophies on win
+    this.TROPHY_DRAW = 5;    // +5 Trophies on draw
+    this.TROPHY_LOSS = 10;   // -10 Trophies on loss (min 0)
+    this.AD_REWARD = 100;    // +100 Coins for watching rewarded video
+
+    this.coinBalanceEl = document.getElementById('coin-balance');
+    this.trophyCountEl = document.getElementById('trophy-count');
+    this.modalCoinBalanceEl = document.getElementById('modal-coin-balance');
+    this.coinsModal = document.getElementById('coins-modal');
+    this.closeCoinsBtn = document.getElementById('close-coins-btn');
+    this.walletBtn = document.getElementById('wallet-btn');
+    this.watchAdBtn = document.getElementById('watch-rewarded-ad-btn');
+
+    this.load();
+    this.bindEvents();
+    this.updateUI();
+  }
+
+  load() {
+    try {
+      const savedCoins = localStorage.getItem('furu_coins');
+      this.coins = savedCoins !== null ? parseInt(savedCoins, 10) : 100;
+      const savedTrophies = localStorage.getItem('furu_trophies');
+      this.trophies = savedTrophies !== null ? parseInt(savedTrophies, 10) : 0;
+      const savedMatches = localStorage.getItem('furu_matches_count');
+      this.matchesCompleted = savedMatches !== null ? parseInt(savedMatches, 10) : 0;
+    } catch (e) {
+      this.coins = 100;
+      this.trophies = 0;
+      this.matchesCompleted = 0;
+    }
+  }
+
+  save() {
+    try {
+      localStorage.setItem('furu_coins', this.coins);
+      localStorage.setItem('furu_trophies', this.trophies);
+      localStorage.setItem('furu_matches_count', this.matchesCompleted);
+    } catch (e) {}
+    this.updateUI();
+  }
+
+  canAffordMatch() {
+    return this.coins >= this.MATCH_FEE;
+  }
+
+  deductEntryFee() {
+    if (!this.canAffordMatch()) {
+      this.showOutOfCoinsModal();
+      return false;
+    }
+    this.coins -= this.MATCH_FEE;
+    this.save();
+    return true;
+  }
+
+  rewardWin() {
+    this.coins += this.WIN_REWARD;
+    this.trophies += this.TROPHY_WIN;
+    this.save();
+  }
+
+  recordDraw() {
+    this.trophies += this.TROPHY_DRAW;
+    this.save();
+  }
+
+  recordLoss() {
+    this.trophies = Math.max(0, this.trophies - this.TROPHY_LOSS);
+    this.save();
+  }
+
+  creditAdReward() {
+    this.coins += this.AD_REWARD;
+    this.save();
+    this.hideOutOfCoinsModal();
+  }
+
+  updateUI() {
+    if (this.coinBalanceEl) this.coinBalanceEl.textContent = this.coins;
+    if (this.trophyCountEl) this.trophyCountEl.textContent = this.trophies;
+    if (this.modalCoinBalanceEl) this.modalCoinBalanceEl.textContent = `${this.coins} 🪙`;
+    const lbUserTrophies = document.getElementById('lb-user-trophies');
+    if (lbUserTrophies) lbUserTrophies.textContent = this.trophies;
+  }
+
+  showOutOfCoinsModal() {
+    if (this.coinsModal) {
+      this.updateUI();
+      this.coinsModal.classList.add('open');
+      this.gameApp.sound.playTone(320, 'sawtooth', 0.2, 0.2);
+    }
+  }
+
+  hideOutOfCoinsModal() {
+    if (this.coinsModal) this.coinsModal.classList.remove('open');
+  }
+
+  bindEvents() {
+    if (this.walletBtn) {
+      this.walletBtn.addEventListener('click', () => {
+        this.gameApp.sound.playClick();
+        this.showOutOfCoinsModal();
+      });
+    }
+    if (this.closeCoinsBtn) {
+      this.closeCoinsBtn.addEventListener('click', () => {
+        this.gameApp.sound.playClick();
+        this.hideOutOfCoinsModal();
+      });
+    }
+    if (this.coinsModal) {
+      this.coinsModal.addEventListener('click', (e) => {
+        if (e.target === this.coinsModal) this.hideOutOfCoinsModal();
+      });
+    }
+    if (this.watchAdBtn) {
+      this.watchAdBtn.addEventListener('click', () => {
+        this.gameApp.sound.playClick();
+        this.hideOutOfCoinsModal();
+        if (window.adMobManager) {
+          window.adMobManager.showRewardedVideo(() => {
+            this.creditAdReward();
+            this.gameApp.sound.playWin();
+            this.gameApp.confetti.blast();
+          });
+        }
+      });
+    }
+  }
+}
+
+// ==========================================================
+// 2. GOOGLE ADMOB MANAGER (REWARDED & INTERSTITIAL ADS)
+// ==========================================================
+class AdMobManager {
+  constructor(gameApp) {
+    this.gameApp = gameApp;
+
+    // Official Google AdMob Test Ad Unit IDs
+    this.adUnitIds = {
+      rewarded: 'ca-app-pub-3940256099942544/5224354917',     // Official Google Test Rewarded
+      interstitial: 'ca-app-pub-3940256099942544/1033173712' // Official Google Test Interstitial
+    };
+
+    // UI elements for Web/PWA Simulator & Fallback
+    this.adOverlay = document.getElementById('ad-overlay');
+    this.adCountdownText = document.getElementById('ad-countdown-text');
+    this.adProgressBar = document.getElementById('ad-progress-bar');
+    this.adSkipCloseBtn = document.getElementById('ad-skip-close-btn');
+
+    this.interstitialOverlay = document.getElementById('interstitial-overlay');
+    this.interstitialCountdownText = document.getElementById('interstitial-countdown-text');
+    this.interstitialCloseBtn = document.getElementById('interstitial-close-btn');
+    this.interstitialContinueBtn = document.getElementById('interstitial-continue-btn');
+
+    this.isCapacitor = typeof window !== 'undefined' && !!(window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('AdMob'));
+    this.init();
+  }
+
+  async init() {
+    if (this.isCapacitor) {
+      try {
+        const { AdMob } = window.Capacitor.Plugins;
+        await AdMob.initialize({
+          testingDevices: ['2077ef8a63d5286324315d4a163b38f9'],
+          initializeForTesting: true
+        });
+        console.log('✅ Google AdMob Native SDK Initialized with Test IDs');
+      } catch (err) {
+        console.warn('Native AdMob fallback to Web Simulator', err);
+        this.isCapacitor = false;
+      }
+    }
+  }
+
+  async showRewardedVideo(onReward, onDismiss) {
+    // 1. Native Capacitor AdMob implementation (Android APK)
+    if (this.isCapacitor) {
+      try {
+        const { AdMob, RewardAdPluginEvents } = window.Capacitor.Plugins;
+        let rewarded = false;
+
+        const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, (reward) => {
+          rewarded = true;
+          console.log('onUserEarnedReward:', reward);
+          if (onReward) onReward(reward);
+        });
+
+        const dismissListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
+          rewardListener.remove();
+          dismissListener.remove();
+          if (onDismiss) onDismiss();
+        });
+
+        const failedListener = await AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error) => {
+          console.warn('onAdFailedToLoad:', error);
+          failedListener.remove();
+          this.simulateRewardedVideo(onReward, onDismiss);
+        });
+
+        await AdMob.prepareRewardVideoAd({ adId: this.adUnitIds.rewarded });
+        await AdMob.showRewardVideoAd();
+        return;
+      } catch (e) {
+        console.warn('Native rewarded ad error, fallback to simulator', e);
+      }
+    }
+
+    // 2. Web / PWA Interactive Video Ad Simulator (Exact same player experience)
+    this.simulateRewardedVideo(onReward, onDismiss);
+  }
+
+  simulateRewardedVideo(onReward, onDismiss) {
+    if (!this.adOverlay) return;
+    this.adOverlay.classList.add('active');
+    this.adSkipCloseBtn.disabled = true;
+    this.adProgressBar.style.width = '0%';
+
+    let secondsLeft = 15;
+    this.adCountdownText.textContent = `Reward in: ${secondsLeft}s`;
+
+    const interval = setInterval(() => {
+      secondsLeft--;
+      this.adCountdownText.textContent = `Reward in: ${secondsLeft}s`;
+      const pct = Math.round(((15 - secondsLeft) / 15) * 100);
+      this.adProgressBar.style.width = `${pct}%`;
+
+      if (secondsLeft <= 0) {
+        clearInterval(interval);
+        this.adCountdownText.textContent = '🎉 Reward Unlocked!';
+        this.adSkipCloseBtn.disabled = false;
+        
+        // Trigger onUserEarnedReward callback
+        if (onReward) onReward({ amount: 100, type: 'coins' });
+
+        this.adSkipCloseBtn.onclick = () => {
+          this.adOverlay.classList.remove('active');
+          if (onDismiss) onDismiss();
+        };
+      }
+    }, 1000);
+  }
+
+  async showInterstitial(onDismiss) {
+    // 1. Native Capacitor AdMob implementation (Android APK)
+    if (this.isCapacitor) {
+      try {
+        const { AdMob, InterstitialAdPluginEvents } = window.Capacitor.Plugins;
+        const dismissListener = await AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
+          dismissListener.remove();
+          if (onDismiss) onDismiss();
+        });
+        const failedListener = await AdMob.addListener(InterstitialAdPluginEvents.FailedToLoad, (err) => {
+          failedListener.remove();
+          if (onDismiss) onDismiss();
+        });
+        await AdMob.prepareInterstitial({ adId: this.adUnitIds.interstitial });
+        await AdMob.showInterstitial();
+        return;
+      } catch (e) {
+        console.warn('Native interstitial error, fallback to simulator', e);
+      }
+    }
+
+    // 2. Web / PWA Interstitial Simulator
+    this.simulateInterstitial(onDismiss);
+  }
+
+  simulateInterstitial(onDismiss) {
+    if (!this.interstitialOverlay) return;
+    this.interstitialOverlay.classList.add('active');
+    this.interstitialCloseBtn.disabled = true;
+    if (this.interstitialContinueBtn) this.interstitialContinueBtn.style.display = 'none';
+
+    let secondsLeft = 5;
+    this.interstitialCountdownText.textContent = `Skip in: ${secondsLeft}s`;
+
+    const interval = setInterval(() => {
+      secondsLeft--;
+      this.interstitialCountdownText.textContent = `Skip in: ${secondsLeft}s`;
+
+      if (secondsLeft <= 0) {
+        clearInterval(interval);
+        this.interstitialCountdownText.textContent = 'Ad Finished';
+        this.interstitialCloseBtn.disabled = false;
+        if (this.interstitialContinueBtn) this.interstitialContinueBtn.style.display = 'block';
+
+        const closeAction = () => {
+          this.interstitialOverlay.classList.remove('active');
+          if (onDismiss) onDismiss();
+        };
+        this.interstitialCloseBtn.onclick = closeAction;
+        if (this.interstitialContinueBtn) this.interstitialContinueBtn.onclick = closeAction;
+      }
+    }, 1000);
+  }
+}
+
+// ==========================================================
+// 3. TOURNAMENT LEADERBOARD MANAGER
+// ==========================================================
+class LeaderboardManager {
+  constructor(gameApp) {
+    this.gameApp = gameApp;
+    this.modal = document.getElementById('leaderboard-modal');
+    this.listEl = document.getElementById('leaderboard-list');
+    this.timerEl = document.getElementById('tournament-timer');
+    this.openBtn = document.getElementById('leaderboard-btn');
+    this.closeBtn = document.getElementById('close-leaderboard-btn');
+    this.userNameEl = document.getElementById('lb-user-name');
+    this.userTrophiesEl = document.getElementById('lb-user-trophies');
+
+    this.mockLeaderboard = [
+      { name: 'Aman_Pro⚡', trophies: 840 },
+      { name: 'Kashmir_King👑', trophies: 710 },
+      { name: 'CyberZero🤖', trophies: 580 },
+      { name: 'Simran_X✨', trophies: 460 },
+      { name: 'Rohit_Kaata🎮', trophies: 390 },
+      { name: 'NinjaFuru⚔️', trophies: 310 },
+      { name: 'Pooja_Sharma🌸', trophies: 270 },
+      { name: 'Vikram_Apex🎯', trophies: 210 }
+    ];
+
+    this.bindEvents();
+    this.startTimer();
+  }
+
+  startTimer() {
+    const updateCountdown = () => {
+      const now = new Date();
+      const nextSunday = new Date();
+      nextSunday.setDate(now.getDate() + (7 - now.getDay()) % 7 || 7);
+      nextSunday.setHours(23, 59, 59, 999);
+
+      const diff = nextSunday - now;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / 1000 / 60) % 60);
+
+      if (this.timerEl) {
+        this.timerEl.textContent = `${days}d ${hours}h ${minutes}m`;
+      }
+    };
+    updateCountdown();
+    setInterval(updateCountdown, 60000);
+  }
+
+  render() {
+    if (!this.listEl) return;
+    const currentName = window.authManager?.currentUser?.name || 'You';
+    const currentTrophies = window.walletManager ? window.walletManager.trophies : 0;
+
+    if (this.userNameEl) this.userNameEl.textContent = currentName;
+    if (this.userTrophiesEl) this.userTrophiesEl.textContent = currentTrophies;
+
+    // Merge current player into the tournament ranking
+    const playerEntry = { name: `${currentName} (You)`, trophies: currentTrophies, isPlayer: true };
+    const combined = [...this.mockLeaderboard, playerEntry]
+      .sort((a, b) => b.trophies - a.trophies)
+      .slice(0, 10);
+
+    this.listEl.innerHTML = combined.map((entry, idx) => {
+      const rankNum = idx + 1;
+      const medal = rankNum === 1 ? '🥇' : rankNum === 2 ? '🥈' : rankNum === 3 ? '🥉' : `#${rankNum}`;
+      const topClass = rankNum <= 3 ? `top-${rankNum}` : '';
+      const playerStyle = entry.isPlayer ? 'style="border: 1px solid var(--neon-cyan); background: rgba(0, 240, 255, 0.08); font-weight: 800;"' : '';
+
+      return `
+        <div class="leaderboard-item ${topClass}" ${playerStyle}>
+          <div class="rank-badge" style="font-size: 13px;">${medal}</div>
+          <div class="rank-info">
+            <span class="rank-name">${entry.name}</span>
+          </div>
+          <div class="rank-score">${entry.trophies} 🏆</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  show() {
+    this.render();
+    if (this.modal) this.modal.classList.add('open');
+  }
+
+  hide() {
+    if (this.modal) this.modal.classList.remove('open');
+  }
+
+  bindEvents() {
+    if (this.openBtn) {
+      this.openBtn.addEventListener('click', () => {
+        this.gameApp.sound.playClick();
+        this.show();
+      });
+    }
+    if (this.closeBtn) {
+      this.closeBtn.addEventListener('click', () => {
+        this.gameApp.sound.playClick();
+        this.hide();
+      });
+    }
+    if (this.modal) {
+      this.modal.addEventListener('click', (e) => {
+        if (e.target === this.modal) this.hide();
+      });
+    }
+  }
+
+  // Cloud Firestore Sync Structure:
+  // Can be connected to Firebase Cloud Firestore for multi-device global sync:
+  /*
+  async syncWithFirebase(userId, userName, trophies) {
+    if (!window.firebase || !window.db) return;
+    try {
+      await db.collection("leaderboard").doc(userId).set({
+        name: userName,
+        trophies: trophies,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } catch (e) {
+      console.warn("Leaderboard cloud sync skipped", e);
+    }
+  }
+  */
+}
+
 // Initialize on DOM load
 window.addEventListener('DOMContentLoaded', () => {
   window.gameApp = new TicTacToeGame();
   window.authManager = new AuthManager(window.gameApp);
+  window.walletManager = new WalletManager(window.gameApp);
+  window.adMobManager = new AdMobManager(window.gameApp);
+  window.leaderboardManager = new LeaderboardManager(window.gameApp);
 
   // Register service worker if available
   if ('serviceWorker' in navigator) {
@@ -765,4 +1243,5 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
 

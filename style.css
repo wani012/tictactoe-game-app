@@ -824,4 +824,484 @@ body {
   box-shadow: 0 0 12px rgba(37, 211, 102, 0.4);
 }
 
+/* ========================================================
+   VIRTUAL COIN WALLET & TOURNAMENT TROPHIES
+   ======================================================== */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.stat-pill:hover {
+  transform: translateY(-2px);
+}
+
+.stat-pill:active {
+  transform: scale(0.95);
+}
+
+.coin-pill {
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  color: var(--neon-gold);
+}
+
+.coin-pill:hover {
+  background: rgba(255, 215, 0, 0.22);
+  box-shadow: 0 0 14px var(--neon-gold-glow);
+}
+
+.coin-spin {
+  display: inline-block;
+  animation: coinBob 2s infinite ease-in-out;
+}
+
+@keyframes coinBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(15deg); }
+}
+
+.trophy-pill {
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: var(--neon-cyan);
+}
+
+.trophy-pill:hover {
+  background: rgba(0, 240, 255, 0.2);
+  box-shadow: 0 0 14px var(--neon-cyan-glow);
+}
+
+/* Economy Bar */
+.economy-bar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.economy-chip {
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.gold-text { color: var(--neon-gold); }
+.green-text { color: #10b981; }
+.cyan-text { color: var(--neon-cyan); }
+
+/* ========================================================
+   MODALS: COIN WALLET & LEADERBOARD
+   ======================================================== */
+.coin-modal-card {
+  max-width: 360px;
+  text-align: center;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.15);
+}
+
+.coin-big-icon {
+  font-size: 54px;
+  margin: 10px 0;
+  animation: coinBounce 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes coinBounce {
+  0% { transform: scale(0.9) translateY(0); }
+  100% { transform: scale(1.1) translateY(-6px); filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.6)); }
+}
+
+.current-balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin: 14px 0;
+  border: 1px solid var(--border-color);
+  font-size: 13px;
+}
+
+.ad-offer-card {
+  background: linear-gradient(145deg, rgba(255, 215, 0, 0.08), rgba(0, 240, 255, 0.05));
+  border: 1px solid rgba(255, 215, 0, 0.25);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-top: 14px;
+  text-align: center;
+}
+
+.ad-offer-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  color: #090d16;
+  background: var(--neon-gold);
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.ad-offer-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.ad-offer-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.reward-highlight {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--neon-gold);
+  text-shadow: 0 0 10px var(--neon-gold-glow);
+  margin-bottom: 14px;
+}
+
+.btn-gold-reward {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  color: #090d16;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.35);
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.btn-gold-reward:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5);
+}
+
+/* Leaderboard Modal */
+.leaderboard-card {
+  max-width: 380px;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 240, 255, 0.15);
+}
+
+.leaderboard-timer-pill {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--neon-cyan);
+  margin-bottom: 14px;
+}
+
+.my-rank-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+}
+
+.rank-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.rank-current {
+  background: var(--neon-cyan);
+  color: #090d16;
+  box-shadow: 0 0 10px var(--neon-cyan-glow);
+}
+
+.rank-info {
+  flex: 1;
+  text-align: left;
+}
+
+.rank-name {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.rank-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.rank-score {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--neon-cyan);
+}
+
+.leaderboard-list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding-right: 4px;
+}
+
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.leaderboard-item.top-1 {
+  border-color: rgba(255, 215, 0, 0.4);
+  background: rgba(255, 215, 0, 0.06);
+}
+
+.leaderboard-item.top-2 {
+  border-color: rgba(192, 192, 192, 0.4);
+  background: rgba(192, 192, 192, 0.06);
+}
+
+.leaderboard-item.top-3 {
+  border-color: rgba(205, 127, 50, 0.4);
+  background: rgba(205, 127, 50, 0.06);
+}
+
+.leaderboard-rules {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+}
+
+/* ========================================================
+   FULLSCREEN ADMOB AD OVERLAY (VIDEO SIMULATOR)
+   ======================================================== */
+.ad-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(25px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  padding: 16px;
+}
+
+.ad-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ad-card {
+  width: 100%;
+  max-width: 400px;
+  height: 520px;
+  background: #0d121c;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 240, 255, 0.2);
+}
+
+.ad-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ad-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: #4285F4;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.ad-countdown-pill {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--neon-gold);
+  background: rgba(255, 215, 0, 0.1);
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.ad-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ad-close-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.ad-close-btn:not(:disabled):hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  transform: scale(1.1);
+}
+
+.ad-content-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  text-align: center;
+  background: radial-gradient(circle at center, rgba(0, 240, 255, 0.08) 0%, transparent 70%);
+  position: relative;
+}
+
+.ad-spark-logo {
+  font-size: 48px;
+  filter: drop-shadow(0 0 16px var(--neon-gold));
+  margin-bottom: 12px;
+  animation: pulseLogo 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes pulseLogo {
+  0% { transform: scale(0.95); }
+  100% { transform: scale(1.1); }
+}
+
+.ad-sponsor-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.ad-sponsor-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.ad-unit-id {
+  font-size: 9px;
+  font-family: monospace;
+  color: #6b7280;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.ad-reward-prompt {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--neon-gold);
+  animation: blinkText 1.5s infinite;
+}
+
+@keyframes blinkText {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.ad-progress-track {
+  width: 85%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 24px;
+}
+
+.ad-progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-gold));
+  transition: width 1s linear;
+}
+
+.ad-footer-bar {
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid var(--border-color);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Interstitial Ad Styling */
+.interstitial-card {
+  border-color: rgba(255, 0, 127, 0.35);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 0, 127, 0.2);
+}
+
+.interstitial-hero .interstitial-icon {
+  font-size: 52px;
+  margin-bottom: 14px;
+  animation: coinBounce 1.5s infinite alternate;
+}

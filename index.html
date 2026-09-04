@@ -45,6 +45,14 @@
       </div>
       
       <div class="header-actions">
+        <div id="wallet-btn" class="stat-pill coin-pill" title="Coins: Click to get Free Coins!">
+          <span class="coin-spin">🪙</span>
+          <span id="coin-balance">100</span>
+        </div>
+        <div id="leaderboard-btn" class="stat-pill trophy-pill" title="Weekly Leaderboard">
+          <span>🏆</span>
+          <span id="trophy-count">0</span>
+        </div>
         <button id="sound-toggle-btn" class="icon-btn" aria-label="Toggle Sound" title="Sound On/Off">🔊</button>
         <button id="settings-btn" class="icon-btn" aria-label="Settings" title="Game Settings">⚙️</button>
       </div>
@@ -96,6 +104,11 @@
       <div class="status-badge">
         <span id="status-dot" class="turn-dot x"></span>
         <span id="status-text">Your Turn (X)</span>
+      </div>
+      <div class="economy-bar">
+        <span class="economy-chip">Match: <strong class="gold-text">-20 🪙</strong></span>
+        <span class="economy-chip win-reward">Win: <strong class="green-text">+35 🪙</strong></span>
+        <span class="economy-chip trophy-reward">Trophy: <strong class="cyan-text">+25 🏆</strong></span>
       </div>
     </div>
 
@@ -203,6 +216,130 @@
           <span>⚡</span> Enter Game
         </button>
       </form>
+    </div>
+  </div>
+
+  <!-- Out of Coins Modal -->
+  <div id="coins-modal" class="modal-overlay">
+    <div class="modal-card coin-modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: var(--neon-gold);">🪙 Out of Coins!</h3>
+        <button id="close-coins-btn" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <div class="coin-modal-body">
+        <div class="coin-big-icon">🪙</div>
+        <p class="modal-desc">Match khelne ke liye kam se kam <strong>20 Coins</strong> chahiye.</p>
+        
+        <div class="current-balance-row">
+          <span>Aapka Coin Balance:</span>
+          <strong id="modal-coin-balance" class="gold-text">0 🪙</strong>
+        </div>
+
+        <div class="ad-offer-card">
+          <div class="ad-offer-tag">🎁 FREE REWARD OFFER</div>
+          <h4 class="ad-offer-title">Watch a short video to get 100 Free Coins!</h4>
+          <p class="ad-offer-subtitle">Ek chhota 15s sponsor video ad dekhein aur turant apne wallet me paayein:</p>
+          <div class="reward-highlight">+100 FREE COINS 🪙</div>
+          
+          <button id="watch-rewarded-ad-btn" class="btn-action btn-gold-reward">
+            <span>🎬</span> Watch Video Ad (+100 🪙)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weekly Tournament Leaderboard Modal -->
+  <div id="leaderboard-modal" class="modal-overlay">
+    <div class="modal-card leaderboard-card">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: var(--neon-cyan);">🏆 Tournament Leaderboard</h3>
+        <button id="close-leaderboard-btn" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <div class="leaderboard-body">
+        <div class="leaderboard-timer-pill">
+          <span>⏱️ Season Resets in:</span>
+          <strong id="tournament-timer">3d 18h 40m</strong>
+        </div>
+
+        <!-- Current User Rank Row -->
+        <div class="my-rank-card">
+          <div class="rank-badge rank-current">YOU</div>
+          <div class="rank-info">
+            <span id="lb-user-name" class="rank-name">Player</span>
+            <span class="rank-sub">Your Tournament Standing</span>
+          </div>
+          <div class="rank-score"><span id="lb-user-trophies">0</span> 🏆</div>
+        </div>
+
+        <!-- Top Ranks List -->
+        <div class="leaderboard-list" id="leaderboard-list">
+          <!-- Populated by LeaderboardManager -->
+        </div>
+
+        <div class="leaderboard-rules">
+          <span>Rules: Win = <strong>+25 🏆</strong> | Draw = <strong>+5 🏆</strong> | Loss = <strong>-10 🏆</strong></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rewarded Video Ad Player Overlay (Web/PWA Simulator & Native AdMob Hook) -->
+  <div id="ad-overlay" class="ad-overlay">
+    <div class="ad-card">
+      <div class="ad-header-bar">
+        <span class="ad-badge">Google AdMob Test Ad</span>
+        <div class="ad-countdown-pill">
+          <span id="ad-countdown-text">Reward in: 15s</span>
+        </div>
+        <button id="ad-skip-close-btn" class="ad-close-btn" title="Close Ad" disabled>✕</button>
+      </div>
+
+      <div class="ad-content-view">
+        <div class="ad-video-mock">
+          <div class="ad-spark-logo">⚡</div>
+          <h3 class="ad-sponsor-title">FURU SPONSOR NETWORK</h3>
+          <p class="ad-sponsor-desc">Google AdMob Rewarded Video Ad SDK</p>
+          <div class="ad-unit-id">Ad Unit: ca-app-pub-3940256099942544/5224354917</div>
+          <div class="ad-reward-prompt">Keep watching to claim your +100 🪙 Coins!</div>
+        </div>
+        <div class="ad-progress-track">
+          <div id="ad-progress-bar" class="ad-progress-bar"></div>
+        </div>
+      </div>
+
+      <div class="ad-footer-bar">
+        <span id="ad-status-msg">Sponsored Game Ad Playing...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interstitial Ad Player Overlay (Runs every 3 matches) -->
+  <div id="interstitial-overlay" class="ad-overlay">
+    <div class="ad-card interstitial-card">
+      <div class="ad-header-bar">
+        <span class="ad-badge">Google AdMob Interstitial</span>
+        <div class="ad-countdown-pill">
+          <span id="interstitial-countdown-text">Skip in: 5s</span>
+        </div>
+        <button id="interstitial-close-btn" class="ad-close-btn" title="Close Ad" disabled>✕</button>
+      </div>
+
+      <div class="ad-content-view interstitial-view">
+        <div class="interstitial-hero">
+          <div class="interstitial-icon">🎮</div>
+          <h3>FURU PRO GAMING</h3>
+          <p>Full-screen Interstitial Ad (Triggered every 3 matches)</p>
+          <div class="ad-unit-id">Ad Unit: ca-app-pub-3940256099942544/1033173712</div>
+        </div>
+      </div>
+
+      <div class="ad-footer-bar">
+        <button id="interstitial-continue-btn" class="btn-action btn-primary" style="width: 100%; display: none;">
+          Continue to Game ⚡
+        </button>
+        <span id="interstitial-sub-text" style="font-size: 11px; opacity: 0.7;">Matches played: 3/3</span>
+      </div>
     </div>
   </div>
 
