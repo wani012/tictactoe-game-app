@@ -547,18 +547,9 @@ class TicTacToeGame {
     this.updateScoreboard();
     this.statusDot.style.display = 'none';
 
-    // Interstitial Ad Trigger: Every 3 completed matches
     if (window.walletManager) {
       window.walletManager.matchesCompleted++;
       window.walletManager.save();
-      const count = window.walletManager.matchesCompleted;
-      if (count > 0 && count % 3 === 0) {
-        setTimeout(() => {
-          if (window.adMobManager) {
-            window.adMobManager.showInterstitial();
-          }
-        }, 1200);
-      }
     }
   }
 
@@ -934,169 +925,149 @@ class WalletManager {
 }
 
 // ==========================================================
-// 2. GOOGLE ADMOB MANAGER (REWARDED & INTERSTITIAL ADS)
+// 💰 REAL WEB MONETIZATION CONFIGURATION (MONETAG & GAMEDISTRIBUTION)
 // ==========================================================
-class AdMobManager {
+// ==========================================================
+// 💰 VERIFIED MONETAG MONETIZATION CONFIGURATION (ZONE: 11722361)
+// ==========================================================
+const REAL_AD_CONFIG = {
+  activeNetwork: 'monetag',
+  monetag: {
+    zoneId: '11722361'
+  }
+};
+
+// ==========================================================
+// 2. REAL AD MANAGER (MONETAG INTERSTITIAL & REWARDED)
+//    - ZERO DUMMY/FAKE POPUPS
+//    - ONLY TRIGGERS ON "WATCH AD" OR OUT-OF-COINS
+// ==========================================================
+class RealAdManager {
   constructor(gameApp) {
     this.gameApp = gameApp;
+    this.config = REAL_AD_CONFIG;
+    this.zoneId = '11722361';
 
-    // Official Google AdMob Test Ad Unit IDs
-    this.adUnitIds = {
-      rewarded: 'ca-app-pub-3940256099942544/5224354917',     // Official Google Test Rewarded
-      interstitial: 'ca-app-pub-3940256099942544/1033173712' // Official Google Test Interstitial
+    // Capacitor Native Android APK support (optional fallback)
+    this.isCapacitor = typeof window !== 'undefined' && !!(window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('AdMob'));
+    this.nativeAdMobIds = {
+      rewarded: 'ca-app-pub-3940256099942544/5224354917',
+      interstitial: 'ca-app-pub-3940256099942544/1033173712'
     };
 
-    // UI elements for Web/PWA Simulator & Fallback
-    this.adOverlay = document.getElementById('ad-overlay');
-    this.adCountdownText = document.getElementById('ad-countdown-text');
-    this.adProgressBar = document.getElementById('ad-progress-bar');
-    this.adSkipCloseBtn = document.getElementById('ad-skip-close-btn');
-
-    this.interstitialOverlay = document.getElementById('interstitial-overlay');
-    this.interstitialCountdownText = document.getElementById('interstitial-countdown-text');
-    this.interstitialCloseBtn = document.getElementById('interstitial-close-btn');
-    this.interstitialContinueBtn = document.getElementById('interstitial-continue-btn');
-
-    this.isCapacitor = typeof window !== 'undefined' && !!(window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('AdMob'));
     this.init();
   }
 
-  async init() {
-    if (this.isCapacitor) {
-      try {
-        const { AdMob } = window.Capacitor.Plugins;
-        await AdMob.initialize({
-          testingDevices: ['2077ef8a63d5286324315d4a163b38f9'],
-          initializeForTesting: true
-        });
-        console.log('✅ Google AdMob Native SDK Initialized with Test IDs');
-      } catch (err) {
-        console.warn('Native AdMob fallback to Web Simulator', err);
-        this.isCapacitor = false;
-      }
+  init() {
+    this.ensureMonetagSdkLoaded();
+  }
+
+  ensureMonetagSdkLoaded() {
+    const zoneId = this.zoneId;
+    if (!document.querySelector(`script[data-zone="${zoneId}"]`)) {
+      const script = document.createElement('script');
+      script.src = '//alwingulla.com/88/tag.min.js';
+      script.setAttribute('data-zone', zoneId);
+      script.setAttribute('data-sdk', `show_${zoneId}`);
+      script.async = true;
+      script.setAttribute('data-cfasync', 'false');
+      document.head.appendChild(script);
+      console.log(`📡 Monetag SDK injected for Zone: ${zoneId}`);
     }
   }
 
+  showToast(message) {
+    let toast = document.getElementById('ad-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'ad-toast';
+      toast.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(13, 18, 28, 0.95);
+        color: #00f0ff;
+        border: 1px solid rgba(0, 240, 255, 0.35);
+        border-radius: 9999px;
+        padding: 10px 22px;
+        font-size: 13px;
+        font-weight: 600;
+        z-index: 10000;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0,240,255,0.25);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        pointer-events: none;
+      `;
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(-50%) translateY(10px)';
+    }, 2500);
+  }
+
   async showRewardedVideo(onReward, onDismiss) {
-    // 1. Native Capacitor AdMob implementation (Android APK)
+    const zoneId = this.zoneId;
+    const monetagSdkFunction = window[`show_${zoneId}`] || window.show_11722361;
+
+    // 1. Native Capacitor AdMob for Android APK
     if (this.isCapacitor) {
       try {
         const { AdMob, RewardAdPluginEvents } = window.Capacitor.Plugins;
         let rewarded = false;
-
         const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, (reward) => {
           rewarded = true;
-          console.log('onUserEarnedReward:', reward);
           if (onReward) onReward(reward);
         });
-
         const dismissListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
           rewardListener.remove();
           dismissListener.remove();
           if (onDismiss) onDismiss();
         });
-
-        const failedListener = await AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error) => {
-          console.warn('onAdFailedToLoad:', error);
-          failedListener.remove();
-          this.simulateRewardedVideo(onReward, onDismiss);
-        });
-
-        await AdMob.prepareRewardVideoAd({ adId: this.adUnitIds.rewarded });
+        await AdMob.prepareRewardVideoAd({ adId: this.nativeAdMobIds.rewarded });
         await AdMob.showRewardVideoAd();
         return;
-      } catch (e) {
-        console.warn('Native rewarded ad error, fallback to simulator', e);
+      } catch (err) {
+        console.warn('Native rewarded error, falling back to Monetag Web', err);
       }
     }
 
-    // 2. Web / PWA Interactive Video Ad Simulator (Exact same player experience)
-    this.simulateRewardedVideo(onReward, onDismiss);
-  }
-
-  simulateRewardedVideo(onReward, onDismiss) {
-    if (!this.adOverlay) return;
-    this.adOverlay.classList.add('active');
-    this.adSkipCloseBtn.disabled = true;
-    this.adProgressBar.style.width = '0%';
-
-    let secondsLeft = 15;
-    this.adCountdownText.textContent = `Reward in: ${secondsLeft}s`;
-
-    const interval = setInterval(() => {
-      secondsLeft--;
-      this.adCountdownText.textContent = `Reward in: ${secondsLeft}s`;
-      const pct = Math.round(((15 - secondsLeft) / 15) * 100);
-      this.adProgressBar.style.width = `${pct}%`;
-
-      if (secondsLeft <= 0) {
-        clearInterval(interval);
-        this.adCountdownText.textContent = '🎉 Reward Unlocked!';
-        this.adSkipCloseBtn.disabled = false;
-        
-        // Trigger onUserEarnedReward callback
+    // 2. Real Monetag Web SDK (Zone ID: 11722361)
+    if (typeof monetagSdkFunction === 'function') {
+      this.showToast('🎬 Loading Sponsor Ad...');
+      try {
+        await monetagSdkFunction();
+        console.log('✅ Monetag Ad successfully completed!');
         if (onReward) onReward({ amount: 100, type: 'coins' });
-
-        this.adSkipCloseBtn.onclick = () => {
-          this.adOverlay.classList.remove('active');
-          if (onDismiss) onDismiss();
-        };
+        if (onDismiss) onDismiss();
+      } catch (adError) {
+        console.warn('Monetag ad completed or closed:', adError);
+        if (onReward) onReward({ amount: 100, type: 'coins' });
+        if (onDismiss) onDismiss();
       }
-    }, 1000);
+      return;
+    }
+
+    // 3. Graceful fallback if ad network is still downloading or adblock is on
+    this.showToast('🎁 +100 Free Coins claimed!');
+    if (onReward) onReward({ amount: 100, type: 'coins' });
+    if (onDismiss) onDismiss();
   }
 
   async showInterstitial(onDismiss) {
-    // 1. Native Capacitor AdMob implementation (Android APK)
-    if (this.isCapacitor) {
+    const zoneId = this.zoneId;
+    const monetagSdkFunction = window[`show_${zoneId}`] || window.show_11722361;
+    if (typeof monetagSdkFunction === 'function') {
       try {
-        const { AdMob, InterstitialAdPluginEvents } = window.Capacitor.Plugins;
-        const dismissListener = await AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
-          dismissListener.remove();
-          if (onDismiss) onDismiss();
-        });
-        const failedListener = await AdMob.addListener(InterstitialAdPluginEvents.FailedToLoad, (err) => {
-          failedListener.remove();
-          if (onDismiss) onDismiss();
-        });
-        await AdMob.prepareInterstitial({ adId: this.adUnitIds.interstitial });
-        await AdMob.showInterstitial();
-        return;
+        await monetagSdkFunction();
       } catch (e) {
-        console.warn('Native interstitial error, fallback to simulator', e);
+        console.warn('Monetag interstitial closed:', e);
       }
     }
-
-    // 2. Web / PWA Interstitial Simulator
-    this.simulateInterstitial(onDismiss);
-  }
-
-  simulateInterstitial(onDismiss) {
-    if (!this.interstitialOverlay) return;
-    this.interstitialOverlay.classList.add('active');
-    this.interstitialCloseBtn.disabled = true;
-    if (this.interstitialContinueBtn) this.interstitialContinueBtn.style.display = 'none';
-
-    let secondsLeft = 5;
-    this.interstitialCountdownText.textContent = `Skip in: ${secondsLeft}s`;
-
-    const interval = setInterval(() => {
-      secondsLeft--;
-      this.interstitialCountdownText.textContent = `Skip in: ${secondsLeft}s`;
-
-      if (secondsLeft <= 0) {
-        clearInterval(interval);
-        this.interstitialCountdownText.textContent = 'Ad Finished';
-        this.interstitialCloseBtn.disabled = false;
-        if (this.interstitialContinueBtn) this.interstitialContinueBtn.style.display = 'block';
-
-        const closeAction = () => {
-          this.interstitialOverlay.classList.remove('active');
-          if (onDismiss) onDismiss();
-        };
-        this.interstitialCloseBtn.onclick = closeAction;
-        if (this.interstitialContinueBtn) this.interstitialContinueBtn.onclick = closeAction;
-      }
-    }, 1000);
+    if (onDismiss) onDismiss();
   }
 }
 
@@ -1233,7 +1204,8 @@ window.addEventListener('DOMContentLoaded', () => {
   window.gameApp = new TicTacToeGame();
   window.authManager = new AuthManager(window.gameApp);
   window.walletManager = new WalletManager(window.gameApp);
-  window.adMobManager = new AdMobManager(window.gameApp);
+  window.realAdManager = new RealAdManager(window.gameApp);
+  window.adMobManager = window.realAdManager; // Compatibility alias
   window.leaderboardManager = new LeaderboardManager(window.gameApp);
 
   // Register service worker if available

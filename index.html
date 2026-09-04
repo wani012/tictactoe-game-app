@@ -25,7 +25,10 @@
   
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=4.1">
+
+  <!-- Monetag Real In-App / Interstitial SDK (Zone ID: 11722361) -->
+  <script src="//alwingulla.com/88/tag.min.js" data-zone="11722361" data-sdk="show_11722361" async data-cfasync="false"></script>
 </head>
 <body>
 
@@ -284,65 +287,6 @@
     </div>
   </div>
 
-  <!-- Rewarded Video Ad Player Overlay (Web/PWA Simulator & Native AdMob Hook) -->
-  <div id="ad-overlay" class="ad-overlay">
-    <div class="ad-card">
-      <div class="ad-header-bar">
-        <span class="ad-badge">Google AdMob Test Ad</span>
-        <div class="ad-countdown-pill">
-          <span id="ad-countdown-text">Reward in: 15s</span>
-        </div>
-        <button id="ad-skip-close-btn" class="ad-close-btn" title="Close Ad" disabled>✕</button>
-      </div>
-
-      <div class="ad-content-view">
-        <div class="ad-video-mock">
-          <div class="ad-spark-logo">⚡</div>
-          <h3 class="ad-sponsor-title">FURU SPONSOR NETWORK</h3>
-          <p class="ad-sponsor-desc">Google AdMob Rewarded Video Ad SDK</p>
-          <div class="ad-unit-id">Ad Unit: ca-app-pub-3940256099942544/5224354917</div>
-          <div class="ad-reward-prompt">Keep watching to claim your +100 🪙 Coins!</div>
-        </div>
-        <div class="ad-progress-track">
-          <div id="ad-progress-bar" class="ad-progress-bar"></div>
-        </div>
-      </div>
-
-      <div class="ad-footer-bar">
-        <span id="ad-status-msg">Sponsored Game Ad Playing...</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Interstitial Ad Player Overlay (Runs every 3 matches) -->
-  <div id="interstitial-overlay" class="ad-overlay">
-    <div class="ad-card interstitial-card">
-      <div class="ad-header-bar">
-        <span class="ad-badge">Google AdMob Interstitial</span>
-        <div class="ad-countdown-pill">
-          <span id="interstitial-countdown-text">Skip in: 5s</span>
-        </div>
-        <button id="interstitial-close-btn" class="ad-close-btn" title="Close Ad" disabled>✕</button>
-      </div>
-
-      <div class="ad-content-view interstitial-view">
-        <div class="interstitial-hero">
-          <div class="interstitial-icon">🎮</div>
-          <h3>FURU PRO GAMING</h3>
-          <p>Full-screen Interstitial Ad (Triggered every 3 matches)</p>
-          <div class="ad-unit-id">Ad Unit: ca-app-pub-3940256099942544/1033173712</div>
-        </div>
-      </div>
-
-      <div class="ad-footer-bar">
-        <button id="interstitial-continue-btn" class="btn-action btn-primary" style="width: 100%; display: none;">
-          Continue to Game ⚡
-        </button>
-        <span id="interstitial-sub-text" style="font-size: 11px; opacity: 0.7;">Matches played: 3/3</span>
-      </div>
-    </div>
-  </div>
-
-  <script src="./game.js"></script>
+  <script src="./game.js?v=4.1"></script>
 </body>
 </html>
