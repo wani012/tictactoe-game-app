@@ -25,7 +25,7 @@
   
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=5.0">
+  <link rel="stylesheet" href="./style.css?v=6.0">
 
   <!-- Monetag Real In-App / Rewarded SDK (Defines window.show_11722361) -->
   <script src="https://libtl.com/sdk.js" data-zone="11722361" data-sdk="show_11722361"></script>
@@ -37,7 +37,7 @@
     if ('caches' in window) {
       caches.keys().then(function(names) {
         names.forEach(function(n) {
-          if (n !== 'furu-v8-final') caches.delete(n);
+          if (n !== 'furu-v9-focus-flow') caches.delete(n);
         });
       });
     }
@@ -300,6 +300,6 @@
     </div>
   </div>
 
-  <script src="./game.js?v=5.0"></script>
+  <script src="./game.js?v=6.0"></script>
 </body>
 </html>

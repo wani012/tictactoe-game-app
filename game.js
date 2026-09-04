@@ -947,6 +947,9 @@ class RealAdManager {
     this.gameApp = gameApp;
     this.config = REAL_AD_CONFIG;
     this.zoneId = '11722361';
+    this.isWatchingAd = false;
+    this.pendingReward = null;
+    this.pendingDismiss = null;
 
     // Capacitor Native Android APK support (optional fallback)
     this.isCapacitor = typeof window !== 'undefined' && !!(window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('AdMob'));
@@ -960,6 +963,18 @@ class RealAdManager {
 
   init() {
     this.ensureMonetagSdkLoaded();
+    this.interceptWindowOpen();
+    this.bindVisibilityAndFocusListeners();
+    this.checkPendingRewardOnLoad();
+  }
+
+  // Force all ad/sponsor popups into a NEW TAB to protect main game
+  interceptWindowOpen() {
+    if (typeof window === 'undefined') return;
+    const originalOpen = window.open;
+    window.open = function(url, target, features) {
+      return originalOpen.call(window, url, '_blank', features || 'noopener,noreferrer');
+    };
   }
 
   ensureMonetagSdkLoaded() {
@@ -971,6 +986,78 @@ class RealAdManager {
       script.setAttribute('data-sdk', `show_${zoneId}`);
       document.head.appendChild(script);
       console.log(`📡 Monetag libtl SDK script injected for Zone: ${zoneId}`);
+    }
+  }
+
+  // Window Focus & Visibility Change Listener
+  bindVisibilityAndFocusListeners() {
+    const handleUserReturn = () => {
+      const isPending = this.isWatchingAd || localStorage.getItem('furu_ad_watching') === 'true';
+      if (!isPending) return;
+
+      const clickTime = parseInt(localStorage.getItem('furu_ad_click_time') || '0', 10);
+      const elapsed = Date.now() - clickTime;
+
+      // Verify user actually switched and stayed on the ad tab for at least 2.5s
+      if (elapsed >= 2500) {
+        this.grantReward('tab_focus_return');
+      }
+    };
+
+    window.addEventListener('focus', handleUserReturn);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        handleUserReturn();
+      }
+    });
+  }
+
+  // If user on mobile had a navigation/reload and came back via back button
+  checkPendingRewardOnLoad() {
+    const isPending = localStorage.getItem('furu_ad_watching') === 'true';
+    if (!isPending) return;
+
+    const clickTime = parseInt(localStorage.getItem('furu_ad_click_time') || '0', 10);
+    const elapsed = Date.now() - clickTime;
+
+    if (elapsed >= 2500) {
+      setTimeout(() => {
+        this.grantReward('page_reload_return');
+      }, 600);
+    } else {
+      localStorage.removeItem('furu_ad_watching');
+      localStorage.removeItem('furu_ad_click_time');
+    }
+  }
+
+  // Grant coins, persist to localStorage, update UI and celebrate
+  grantReward(triggerSource) {
+    console.log(`🎉 Granting +100 Coins reward (source: ${triggerSource})`);
+    this.isWatchingAd = false;
+    localStorage.removeItem('furu_ad_watching');
+    localStorage.removeItem('furu_ad_click_time');
+
+    // 1. Credit wallet & save to localStorage
+    if (window.walletManager) {
+      window.walletManager.creditAdReward();
+      window.walletManager.save();
+      window.walletManager.updateUI();
+    }
+
+    // 2. Audio & Confetti celebration
+    if (this.gameApp && this.gameApp.sound) {
+      this.gameApp.sound.playWin();
+    }
+    if (this.gameApp && this.gameApp.confetti) {
+      this.gameApp.confetti.blast();
+    }
+
+    // 3. User requested exact toast
+    this.showToast('🎉 Reward Claimed: +100 Coins added!');
+
+    if (this.pendingReward) {
+      this.pendingReward({ amount: 100, type: 'coins' });
+      this.pendingReward = null;
     }
   }
 
@@ -1007,91 +1094,47 @@ class RealAdManager {
     setTimeout(() => {
       toast.style.opacity = '0';
       toast.style.transform = 'translateX(-50%) translateY(10px)';
-    }, 3200);
+    }, 3500);
   }
 
   async showRewardedVideo(onReward, onDismiss) {
+    this.pendingReward = onReward;
+    this.pendingDismiss = onDismiss;
+
+    // 1. Mark pending ad state in memory and localStorage
+    this.isWatchingAd = true;
+    localStorage.setItem('furu_ad_watching', 'true');
+    localStorage.setItem('furu_ad_click_time', Date.now().toString());
+
+    this.showToast('🎬 Opening Sponsor Ad in new tab...');
+
     const zoneId = this.zoneId;
-    const getSdkFunction = () => window[`show_${zoneId}`] || window.show_11722361;
+    const monetagSdkFunction = window[`show_${zoneId}`] || window.show_11722361;
 
-    // 1. Native Capacitor AdMob for Android APK
-    if (this.isCapacitor) {
+    // 2. Open Monetag Ad in a NEW TAB so game tab remains open
+    let adOpened = false;
+    if (typeof monetagSdkFunction === 'function') {
       try {
-        const { AdMob, RewardAdPluginEvents } = window.Capacitor.Plugins;
-        let rewarded = false;
-        const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, (reward) => {
-          rewarded = true;
-          if (onReward) onReward(reward);
-        });
-        const dismissListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
-          rewardListener.remove();
-          dismissListener.remove();
-          if (onDismiss) onDismiss();
-        });
-        await AdMob.prepareRewardVideoAd({ adId: this.nativeAdMobIds.rewarded });
-        await AdMob.showRewardVideoAd();
-        return;
-      } catch (err) {
-        console.warn('Native AdMob error, falling back to Monetag Web', err);
-      }
-    }
-
-    // Helper: Execute Monetag ad with STRICT reward-on-completion only
-    const triggerAd = (sdkFn) => {
-      this.showToast('🎬 Loading Sponsor Ad...');
-      try {
-        const adPromise = sdkFn();
+        const adPromise = monetagSdkFunction();
+        adOpened = true;
         if (adPromise && typeof adPromise.then === 'function') {
           adPromise
             .then(() => {
-              // ✅ STRICT REWARD: User completed watching the real ad!
-              console.log('✅ Monetag Rewarded Ad watched successfully!');
-              this.showToast('🎉 Ad watched! +100 Coins added!');
-              if (onReward) onReward({ amount: 100, type: 'coins' });
-              if (onDismiss) onDismiss();
+              this.grantReward('sdk_promise_resolve');
             })
-            .catch((adError) => {
-              // ❌ NO REWARD: Ad was closed early, cancelled or failed!
-              console.warn('Monetag ad cancelled or incomplete:', adError);
-              this.showToast('⚠️ Ad poora nahi dekha gaya. Coins nahi mile.', true);
-              if (onDismiss) onDismiss();
+            .catch((err) => {
+              console.warn('Monetag promise dismiss, waiting for tab return:', err);
             });
-        } else {
-          console.warn('Monetag SDK did not return a Promise');
-          if (onDismiss) onDismiss();
         }
       } catch (e) {
-        console.error('Error launching Monetag ad:', e);
-        this.showToast('⚠️ Ad open karne me dikkat aayi. Kripya dobara try karein.', true);
-        if (onDismiss) onDismiss();
+        console.warn('Monetag function error:', e);
       }
-    };
-
-    // 2. Check if Monetag SDK is ready immediately
-    let monetagSdkFunction = getSdkFunction();
-    if (typeof monetagSdkFunction === 'function') {
-      triggerAd(monetagSdkFunction);
-      return;
     }
 
-    // 3. If SDK script is still loading, wait up to 2.5 seconds (polling every 200ms)
-    this.showToast('⏳ Ad server se connect ho raha hai...');
-    let attempts = 0;
-    const maxAttempts = 12; // 12 * 200ms = 2.4s
-    const checkInterval = setInterval(() => {
-      attempts++;
-      monetagSdkFunction = getSdkFunction();
-      if (typeof monetagSdkFunction === 'function') {
-        clearInterval(checkInterval);
-        triggerAd(monetagSdkFunction);
-      } else if (attempts >= maxAttempts) {
-        clearInterval(checkInterval);
-        // ❌ NO BYPASS: Blocked by AdBlocker or network timeout
-        console.warn('Monetag SDK not available. Likely blocked by AdBlocker.');
-        this.showToast('❌ Ad load nahi hua! AdBlocker off karke try karein.', true);
-        if (onDismiss) onDismiss();
-      }
-    }, 200);
+    // If SDK didn't trigger a new tab, open Monetag sponsor link directly in a NEW TAB
+    if (!adOpened) {
+      window.open(`https://alwingulla.com/88/tag.min.js?zone=${zoneId}`, '_blank');
+    }
   }
 
   async showInterstitial(onDismiss) {

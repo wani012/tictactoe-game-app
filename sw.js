@@ -1,9 +1,9 @@
-const CACHE_NAME = 'furu-v8-final';
+const CACHE_NAME = 'furu-v9-focus-flow';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=5.0',
-  './game.js?v=5.0',
+  './style.css?v=6.0',
+  './game.js?v=6.0',
   './manifest.json',
   './icon.svg'
 ];
