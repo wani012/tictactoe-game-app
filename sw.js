@@ -1,9 +1,9 @@
-const CACHE_NAME = 'furu-v6-monetag-strict';
+const CACHE_NAME = 'furu-v7-libtl-monetag';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=4.2',
-  './game.js?v=4.2',
+  './style.css?v=4.3',
+  './game.js?v=4.3',
   './manifest.json',
   './icon.svg'
 ];
@@ -35,7 +35,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = e.request.url;
   // Always fetch real ads and analytics directly from network
-  if (url.includes('alwingulla.com') || url.includes('gamedistribution.com') || url.includes('monetag.com') || url.includes('google')) {
+  if (url.includes('libtl.com') || url.includes('alwingulla.com') || url.includes('gamedistribution.com') || url.includes('monetag.com') || url.includes('google')) {
     return;
   }
 

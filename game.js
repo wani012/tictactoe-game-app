@@ -964,15 +964,13 @@ class RealAdManager {
 
   ensureMonetagSdkLoaded() {
     const zoneId = this.zoneId;
-    if (!document.querySelector(`script[data-zone="${zoneId}"]`)) {
+    if (!document.querySelector(`script[src*="libtl.com"]`)) {
       const script = document.createElement('script');
-      script.src = 'https://alwingulla.com/88/tag.min.js';
+      script.src = 'https://libtl.com/sdk.js';
       script.setAttribute('data-zone', zoneId);
       script.setAttribute('data-sdk', `show_${zoneId}`);
-      script.async = true;
-      script.setAttribute('data-cfasync', 'false');
       document.head.appendChild(script);
-      console.log(`📡 Monetag SDK script tag injected for Zone: ${zoneId}`);
+      console.log(`📡 Monetag libtl SDK script injected for Zone: ${zoneId}`);
     }
   }
 
