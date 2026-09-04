@@ -83,11 +83,14 @@
     <!-- User Profile Bar -->
     <div id="user-bar" class="user-bar">
       <div class="user-info">
-        <span>👤</span>
+        <span id="user-avatar-slot">👤</span>
         <span>Player: <strong id="user-display-name" class="user-name-highlight">Guest</strong></span>
         <span id="user-display-email" style="opacity: 0.7; font-size: 11px;">(email)</span>
       </div>
-      <button id="logout-btn" class="btn-logout" title="Logout">Logout</button>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <button id="arena-btn" class="btn-arena" title="Choose Tournament or Practice">🏆 Arena</button>
+        <button id="logout-btn" class="btn-logout" title="Logout">Logout</button>
+      </div>
     </div>
 
     <!-- Mode Selector -->
@@ -123,6 +126,9 @@
 
     <!-- Status Turn Banner -->
     <div class="status-container">
+      <div id="tournament-active-pill" class="tournament-active-pill" style="display: none;">
+        <span>🏆</span> <strong>TOURNAMENT MATCH</strong> <span id="tournament-match-count-badge" class="count-tag">(1/5)</span>
+      </div>
       <div class="status-badge">
         <span id="status-dot" class="turn-dot x"></span>
         <span id="status-text">Your Turn (X)</span>
@@ -289,7 +295,7 @@
     </div>
   </div>
 
-  <!-- Weekly Tournament Leaderboard Modal -->
+  <!-- 3-Day Tournament Official Leaderboard Modal -->
   <div id="leaderboard-modal" class="modal-overlay">
     <div class="modal-card leaderboard-card">
       <div class="modal-header">
@@ -298,37 +304,124 @@
       </div>
       <div class="leaderboard-body">
         <div class="leaderboard-timer-pill">
-          <span>⏱️ Season Resets in:</span>
-          <strong id="tournament-timer">3d 18h 40m</strong>
+          <span>⏱️ 3-Day Cycle Resets in:</span>
+          <strong id="tournament-timer">3d 00h 00m</strong>
         </div>
 
-        <!-- Guest Warning / Prompt (Shown only to non-logged-in users) -->
+        <!-- 👑 WINNER SPOTLIGHT: Reigning Champion (Golden Cyber Glow Badge) -->
+        <div id="champion-spotlight-card" class="champion-spotlight-card">
+          <div class="champion-sparkle-fx"></div>
+          <div class="champion-badge-icon">👑</div>
+          <div class="champion-info">
+            <div class="champion-tag">⚡ REIGNING CHAMPION ⚡</div>
+            <div class="champion-header">
+              <img id="champion-avatar" class="champion-avatar" src="./icon.svg" alt="Champion Avatar" />
+              <div class="champion-text">
+                <div id="champion-name" class="champion-name">Awaiting Champion...</div>
+                <div id="champion-score" class="champion-score">Top Rank #1 Crown</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Guest / Non-Google Prompt -->
         <div id="lb-guest-prompt" class="lb-guest-prompt" style="display: none;">
           <div class="lb-guest-text">
-            <span>🔒 <strong>Guest Mode:</strong> Leaderboard par aane aur 3-Day Tournament me 100 Coins jeetne ke liye login karein!</span>
+            <span>🔒 <strong>Guest Mode:</strong> Public leaderboard par official rank aur 3-Day prizes ke liye Google se Sign-In karein!</span>
           </div>
           <button id="lb-login-btn" class="btn-action btn-primary" style="padding: 6px 14px; font-size: 11px; white-space: nowrap;">
-            Login Now ⚡
+            Sign In with Google ⚡
           </button>
         </div>
 
-        <!-- Current User Rank Row (Visible only for logged-in authenticated users) -->
+        <!-- Current User Rank Row (Only for Google-authenticated users) -->
         <div id="my-rank-card" class="my-rank-card">
           <div class="rank-badge rank-current">YOU</div>
           <div class="rank-info">
             <span id="lb-user-name" class="rank-name">Player</span>
-            <span class="rank-sub">Your Tournament Standing</span>
+            <span id="lb-user-sub" class="rank-sub">Official Ranking • 5/5 Left Today</span>
           </div>
-          <div class="rank-score"><span id="lb-user-trophies">0</span> 🏆</div>
+          <div class="rank-score"><span id="lb-user-trophies">0</span> pts</div>
         </div>
 
-        <!-- Top Ranks List -->
+        <!-- Top Ranks List (Populated in real-time from Firestore /leaderboard query) -->
         <div class="leaderboard-list" id="leaderboard-list">
-          <!-- Populated by LeaderboardManager -->
+          <div class="lb-empty-state">
+            <span>📡</span>
+            <p>Fetching official live leaderboard...</p>
+          </div>
         </div>
 
         <div class="leaderboard-rules">
-          <span>Rules: Win = <strong>+25 🏆</strong> | Draw = <strong>+5 🏆</strong> | Loss = <strong>-10 🏆</strong> | Top #1 = <strong>+100 Coins 🪙</strong></span>
+          <span>Rules: Win = <strong>+25 pts</strong> | Draw = <strong>+5 pts</strong> | Loss = <strong>-5 pts</strong> | 5 Matches/Day | Top #1 = <strong>Reigning Champion 👑</strong></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Post-Login / Arena Selection Modal (Shown to Google Sign-In Users) -->
+  <div id="game-mode-modal" class="modal-overlay">
+    <div class="modal-card mode-select-card">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: var(--neon-cyan);">🎮 Choose Your Arena</h3>
+        <button id="close-mode-modal-btn" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <div class="mode-select-body">
+        <p class="mode-select-sub">Welcome, <strong id="mode-modal-username" class="gold-text">Player</strong>! Select how you want to play:</p>
+
+        <!-- Option A: Tournament -->
+        <div class="arena-card arena-tournament" id="card-join-tournament">
+          <div class="arena-badge">OFFICIAL 3-DAY TOURNAMENT</div>
+          <div class="arena-icon-wrap">
+            <span class="arena-icon">🏆</span>
+          </div>
+          <h4 class="arena-title">Join Tournament</h4>
+          <p class="arena-desc">Compete for the live leaderboard and 3-Day Reigning Champion crown!</p>
+          
+          <div class="arena-meta">
+            <div class="meta-chip">
+              <span class="meta-label">Entry Fee:</span>
+              <strong class="meta-val gold-text">50 🪙</strong>
+            </div>
+            <div class="meta-chip">
+              <span class="meta-label">Daily Limit:</span>
+              <strong id="tournament-limit-pill" class="meta-val cyan-text">5/5 Left Today</strong>
+            </div>
+            <div class="meta-chip">
+              <span class="meta-label">Your Wallet:</span>
+              <strong id="tournament-wallet-pill" class="meta-val gold-text">100 🪙</strong>
+            </div>
+          </div>
+
+          <button id="btn-start-tournament" class="btn-action btn-gold-reward arena-action-btn">
+            <span>⚡</span> Enter Tournament (50 🪙)
+          </button>
+          <div id="tournament-error-msg" class="arena-error-text" style="display:none;"></div>
+        </div>
+
+        <!-- Option B: Practice -->
+        <div class="arena-card arena-practice" id="card-play-practice">
+          <div class="arena-badge practice-badge">FREE CASUAL PLAY</div>
+          <div class="arena-icon-wrap">
+            <span class="arena-icon">🎮</span>
+          </div>
+          <h4 class="arena-title">Play Free (Practice Mode)</h4>
+          <p class="arena-desc">Casual match against AI or Pass & Play. No coins deducted, no tournament rank impact.</p>
+
+          <div class="arena-meta">
+            <div class="meta-chip">
+              <span class="meta-label">Fee:</span>
+              <strong class="meta-val green-text">FREE</strong>
+            </div>
+            <div class="meta-chip">
+              <span class="meta-label">Attempts:</span>
+              <strong class="meta-val green-text">UNLIMITED</strong>
+            </div>
+          </div>
+
+          <button id="btn-start-practice" class="btn-action btn-primary arena-action-btn">
+            <span>▶️</span> Play Free Practice
+          </button>
         </div>
       </div>
     </div>

@@ -34,73 +34,74 @@ async function runTournamentAutomation() {
   console.log(`[${new Date().toISOString()}] 🚀 Running 3-Day Tournament Automation...`);
 
   const now = new Date();
-  const seasonId = `season_${now.toISOString().slice(0, 10).replace(/-/g, "_")}`;
+  const CYCLE_MS = 3 * 24 * 60 * 60 * 1000;
+  const cycleId = `cycle_${now.getTime()}`;
 
   try {
-    // 1. Find Rank #1 Player (Excluding any guest accounts)
+    // 1. Find Rank #1 Google Verified Player from /leaderboard
     const snapshot = await db
-      .collection("tournament_leaderboard")
-      .where("isGuest", "==", false)
-      .orderBy("trophies", "desc")
+      .collection("leaderboard")
+      .where("isGoogleUser", "==", true)
+      .orderBy("score", "desc")
       .limit(1)
       .get();
 
-    if (snapshot.empty) {
-      console.log("ℹ️ No active registered players found.");
-      return;
+    let champion = null;
+
+    if (!snapshot.empty) {
+      const winnerDoc = snapshot.docs[0];
+      const winnerData = winnerDoc.data();
+      const winnerId = winnerData.uid || winnerDoc.id;
+      const score = winnerData.score || 0;
+
+      if (score > 0) {
+        champion = {
+          uid: winnerId,
+          name: winnerData.name || "Champion",
+          photoURL: winnerData.photoURL || "",
+          score: score,
+          cycleWon: cycleId
+        };
+
+        console.log(`🏆 Reigning Champion: ${champion.name} with ${score} pts`);
+
+        // 2. Increment 100 coins & set winner notification in user profile
+        const userRef = db.collection("users").doc(winnerId);
+        await userRef.set(
+          {
+            coins: admin.firestore.FieldValue.increment(100),
+            unclaimedTournamentReward: {
+              amount: 100,
+              cycleWon: cycleId,
+              claimed: false,
+              awardedAt: admin.firestore.FieldValue.serverTimestamp()
+            },
+            lastActive: admin.firestore.FieldValue.serverTimestamp()
+          },
+          { merge: true }
+        );
+
+        console.log(`✅ 100 Coins credited to ${champion.name}. Notification flag set.`);
+      }
     }
 
-    const winnerDoc = snapshot.docs[0];
-    const winnerData = winnerDoc.data();
-    const winnerId = winnerData.userId || winnerDoc.id;
-    const trophies = winnerData.trophies || 0;
-
-    if (trophies <= 0) {
-      console.log("ℹ️ Rank #1 player has 0 trophies. Skipping reward.");
-      return;
-    }
-
-    console.log(`🏆 Winner: ${winnerData.displayName} with ${trophies} 🏆`);
-
-    // 2. Increment 100 coins & set pop-up flag
-    const userRef = db.collection("users").doc(winnerId);
-    await userRef.set(
-      {
-        coins: admin.firestore.FieldValue.increment(100),
-        unclaimedTournamentReward: {
-          amount: 100,
-          seasonId: seasonId,
-          rank: 1,
-          claimed: false,
-          awardedAt: admin.firestore.FieldValue.serverTimestamp()
-        },
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      },
-      { merge: true }
-    );
-
-    // 3. Save completed tournament record
-    await db.collection("tournaments").doc(seasonId).set({
-      seasonId: seasonId,
-      endedAt: admin.firestore.FieldValue.serverTimestamp(),
-      winner: {
-        userId: winnerId,
-        displayName: winnerData.displayName,
-        trophies: trophies,
-        coinsAwarded: 100
-      },
-      status: "completed"
+    // 3. Update /tournaments/current_cycle with next 3-day window & freeze Reigning Champion
+    await db.collection("tournaments").doc("current_cycle").set({
+      cycleId: cycleId,
+      startTime: admin.firestore.Timestamp.fromDate(now),
+      endTime: admin.firestore.Timestamp.fromDate(new Date(now.getTime() + CYCLE_MS)),
+      reigningChampion: champion
     });
 
-    console.log(`✅ 100 Coins credited to ${winnerData.displayName}. Notification flag set.`);
-
     // 4. Reset scores for next 3-day cycle
-    const allDocs = await db.collection("tournament_leaderboard").get();
+    const allDocs = await db.collection("leaderboard").get();
     const batch = db.batch();
     allDocs.forEach((doc) => {
       batch.update(doc.ref, {
-        trophies: 0,
-        lastResetAt: admin.firestore.FieldValue.serverTimestamp()
+        score: 0,
+        matchesPlayed: 0,
+        matchesWon: 0,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
     });
 

@@ -170,6 +170,7 @@ class TicTacToeGame {
 
     this.sound = new SoundEngine();
     this.confetti = new ConfettiEngine('confetti-canvas');
+    this.isTournamentMatch = false;
 
     this.loadStorage();
     this.cacheDom();
@@ -199,6 +200,9 @@ class TicTacToeGame {
     this.resetScoresBtn = document.getElementById('reset-scores-btn');
     this.symbolChips = document.querySelectorAll('.symbol-chip');
     this.doubleRewardBtn = document.getElementById('double-reward-btn');
+    this.tournamentActivePill = document.getElementById('tournament-active-pill');
+    this.tournamentMatchCountBadge = document.getElementById('tournament-match-count');
+    this.arenaBtn = document.getElementById('arena-btn');
   }
 
   loadStorage() {
@@ -307,6 +311,25 @@ class TicTacToeGame {
         this.resetGame();
       });
     });
+
+    if (this.arenaBtn) {
+      this.arenaBtn.addEventListener('click', () => {
+        this.sound.playClick();
+        if (window.authManager) {
+          window.authManager.showArenaModal();
+        }
+      });
+    }
+  }
+
+  setTournamentMatch(active, dailyCount = 1) {
+    this.isTournamentMatch = !!active;
+    if (this.tournamentActivePill) {
+      this.tournamentActivePill.style.display = active ? 'flex' : 'none';
+    }
+    if (this.tournamentMatchCountBadge) {
+      this.tournamentMatchCountBadge.textContent = `${dailyCount}/5`;
+    }
   }
 
   handleDoubleRewardClick() {
@@ -545,13 +568,28 @@ class TicTacToeGame {
   handleGameEnd(result, winData = null) {
     this.isGameOver = true;
     this.roundStarted = false;
+    const wasTournamentMatch = this.isTournamentMatch;
 
     if (result === 'draw') {
       this.scores.draw++;
-      this.statusText.textContent = "It's a Draw! (+5 🏆)";
       this.sound.playDraw();
       this.vibrate([80, 50, 80]);
-      if (window.walletManager) window.walletManager.recordDraw();
+
+      if (wasTournamentMatch) {
+        this.statusText.textContent = "🏆 Tournament Draw! (+5 Pts +25 🪙 Refund)";
+        if (window.walletManager) {
+          window.walletManager.coins += 25;
+          window.walletManager.save();
+        }
+        if (window.leaderboardManager) {
+          window.leaderboardManager.recordTournamentScore(5, false);
+        }
+        this.setTournamentMatch(false);
+      } else {
+        this.statusText.textContent = "It's a Draw! (+5 🏆)";
+        if (window.walletManager) window.walletManager.recordDraw();
+      }
+
       if (window.authManager) window.authManager.syncUserStatsToFirestore();
     } else {
       if (result === 'X') {
@@ -565,8 +603,21 @@ class TicTacToeGame {
         this.confetti.blast();
         this.sound.playWin();
         this.vibrate([100, 50, 100, 50, 150]);
-        this.statusText.textContent = this.mode === 'ai' ? '🎉 You Won! (+35 🪙 +25 🏆)' : `🎉 Player ${result} Won! (+35 🪙)`;
-        if (window.walletManager) window.walletManager.rewardWin();
+
+        if (wasTournamentMatch) {
+          this.statusText.textContent = '🏆 Tournament Match Won! (+25 Pts +70 🪙)';
+          if (window.walletManager) {
+            window.walletManager.coins += 70;
+            window.walletManager.save();
+          }
+          if (window.leaderboardManager) {
+            window.leaderboardManager.recordTournamentScore(25, true);
+          }
+          this.setTournamentMatch(false);
+        } else {
+          this.statusText.textContent = this.mode === 'ai' ? '🎉 You Won! (+35 🪙 +25 🏆)' : `🎉 Player ${result} Won! (+35 🪙)`;
+          if (window.walletManager) window.walletManager.rewardWin();
+        }
 
         // ☁️ Sync Match Win to Firestore Live Tracking
         if (window.authManager) {
@@ -585,8 +636,17 @@ class TicTacToeGame {
       } else {
         this.sound.playLose();
         this.vibrate([150, 80, 200]);
-        this.statusText.textContent = '🤖 Bot Won! (-10 🏆)';
-        if (window.walletManager) window.walletManager.recordLoss();
+
+        if (wasTournamentMatch) {
+          this.statusText.textContent = '💀 Tournament Match Lost! (-5 Pts)';
+          if (window.leaderboardManager) {
+            window.leaderboardManager.recordTournamentScore(-5, false);
+          }
+          this.setTournamentMatch(false);
+        } else {
+          this.statusText.textContent = '🤖 Bot Won! (-10 🏆)';
+          if (window.walletManager) window.walletManager.recordLoss();
+        }
 
         // ☁️ Sync Match Loss to Firestore Live Tracking
         if (window.authManager) {
@@ -751,6 +811,16 @@ class AuthManager {
     this.logoutBtn = document.getElementById('logout-btn');
     this.googleLoginBtn = document.getElementById('google-login-btn');
 
+    // Post-Login / Arena Selection Modal Elements
+    this.modeModal = document.getElementById('game-mode-modal');
+    this.closeModeModalBtn = document.getElementById('close-mode-modal-btn');
+    this.modeModalUsername = document.getElementById('mode-modal-username');
+    this.btnStartTournament = document.getElementById('btn-start-tournament');
+    this.btnStartPractice = document.getElementById('btn-start-practice');
+    this.tournamentLimitPill = document.getElementById('tournament-limit-pill');
+    this.tournamentWalletPill = document.getElementById('tournament-wallet-pill');
+    this.tournamentErrorMsg = document.getElementById('tournament-error-msg');
+
     this.init();
   }
 
@@ -794,6 +864,9 @@ class AuthManager {
       const savedUser = localStorage.getItem('furu_auth_user');
       if (savedUser) {
         this.currentUser = JSON.parse(savedUser);
+        if (this.currentUser.isGoogleUser === undefined) {
+          this.currentUser.isGoogleUser = !!this.currentUser.isGoogle;
+        }
         this.unlockApp();
         setTimeout(() => {
           if (window.leaderboardManager) {
@@ -835,6 +908,34 @@ class AuthManager {
         if (this.emailError) this.emailError.classList.remove('visible');
       });
     }
+
+    // Arena modal buttons
+    if (this.closeModeModalBtn) {
+      this.closeModeModalBtn.addEventListener('click', () => {
+        this.gameApp.sound.playClick();
+        this.hideArenaModal();
+      });
+    }
+
+    if (this.modeModal) {
+      this.modeModal.addEventListener('click', (e) => {
+        if (e.target === this.modeModal) {
+          this.hideArenaModal();
+        }
+      });
+    }
+
+    if (this.btnStartTournament) {
+      this.btnStartTournament.addEventListener('click', () => {
+        this.handleTournamentEntry();
+      });
+    }
+
+    if (this.btnStartPractice) {
+      this.btnStartPractice.addEventListener('click', () => {
+        this.handlePracticeEntry();
+      });
+    }
   }
 
   validateEmail(email) {
@@ -874,7 +975,7 @@ class AuthManager {
       "⚡ Firebase Configuration Needed:\n\n" +
       "1. Apne Firebase Console (console.firebase.google.com) se config keys copy karein.\n" +
       "2. 'firebase-config.js' file me paste karein.\n\n" +
-      "Tab tak aap neeche Username & Email daal kar khel sakte hain!"
+      "Tab tak aap neeche Username & Email daal kar Free Practice Mode khel sakte hain!"
     );
   }
 
@@ -885,7 +986,7 @@ class AuthManager {
       name: displayName,
       email: user.email,
       photoURL: user.photoURL || null,
-      isGoogle: true,
+      isGoogleUser: true,
       loggedInAt: new Date().toISOString()
     };
 
@@ -903,8 +1004,12 @@ class AuthManager {
     if (window.leaderboardManager) {
       window.leaderboardManager.render();
       window.leaderboardManager.checkForWinnerReward();
-      window.leaderboardManager.syncScoreToDatabase();
     }
+
+    // 🎯 Sleek Cyber Modal appears immediately post-Google login!
+    setTimeout(() => {
+      this.showArenaModal();
+    }, 600);
   }
 
   async loadAndSyncUserFromFirestore(firebaseUser) {
@@ -915,37 +1020,42 @@ class AuthManager {
 
       if (doc.exists) {
         const data = doc.data();
-        // Restore user's coins & stats from cloud database
         if (data.coins !== undefined && window.walletManager) {
           window.walletManager.coins = data.coins;
           window.walletManager.trophies = data.trophies || 0;
           window.walletManager.matchesCompleted = data.matchesPlayed || 0;
           window.walletManager.save();
         }
-        // Update lastActive timestamp & online status
         await userRef.set({
-          name: this.currentUser.name,
+          uid: firebaseUser.uid,
+          displayName: this.currentUser.name,
           email: this.currentUser.email,
+          photoURL: this.currentUser.photoURL || null,
+          isGoogleUser: true,
           online: true,
-          lastActive: firebase.firestore.FieldValue.serverTimestamp()
+          lastLogin: (typeof firebase !== 'undefined' && firebase.firestore) ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+          lastActive: (typeof firebase !== 'undefined' && firebase.firestore) ? firebase.firestore.FieldValue.serverTimestamp() : new Date()
         }, { merge: true });
         console.log("☁️ User profile restored from Firestore:", firebaseUser.uid);
       } else {
-        // First-time user: Create new document with 100 coins
+        // Initial balance 100 free coins for new players
         await userRef.set({
           uid: firebaseUser.uid,
-          name: this.currentUser.name,
+          displayName: this.currentUser.name,
           email: this.currentUser.email,
+          photoURL: this.currentUser.photoURL || null,
+          isGoogleUser: true,
           coins: 100,
           trophies: 0,
           matchesPlayed: 0,
           matchesWon: 0,
           online: true,
-          isGuest: false,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          lastActive: firebase.firestore.FieldValue.serverTimestamp()
+          dailyPlays: {},
+          createdAt: (typeof firebase !== 'undefined' && firebase.firestore) ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+          lastLogin: (typeof firebase !== 'undefined' && firebase.firestore) ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+          lastActive: (typeof firebase !== 'undefined' && firebase.firestore) ? firebase.firestore.FieldValue.serverTimestamp() : new Date()
         });
-        console.log("🆕 New player document created in Firestore:", firebaseUser.uid);
+        console.log("🆕 New player document created in Firestore with 100 coins:", firebaseUser.uid);
       }
     } catch (e) {
       console.warn("Firestore user sync error:", e);
@@ -973,7 +1083,8 @@ class AuthManager {
       uid: clientUid,
       name: name,
       email: email,
-      isGoogle: false,
+      photoURL: null,
+      isGoogleUser: false, // Guest/Username mode: strictly non-Google
       loggedInAt: new Date().toISOString()
     };
 
@@ -993,7 +1104,158 @@ class AuthManager {
     if (window.leaderboardManager) {
       window.leaderboardManager.render();
       window.leaderboardManager.checkForWinnerReward();
-      window.leaderboardManager.syncScoreToDatabase();
+    }
+  }
+
+  getTodayDateKey() {
+    return new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD (UTC)
+  }
+
+  getDailyTournamentPlays() {
+    if (!this.currentUser) return 0;
+    try {
+      const todayKey = this.getTodayDateKey();
+      const storageKey = `furu_daily_tournaments_${this.currentUser.uid || this.currentUser.email}`;
+      const data = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      return data[todayKey] || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  async recordDailyTournamentPlay() {
+    if (!this.currentUser) return 1;
+    const todayKey = this.getTodayDateKey();
+    const storageKey = `furu_daily_tournaments_${this.currentUser.uid || this.currentUser.email}`;
+    let data = {};
+    try {
+      data = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    } catch (e) {}
+    data[todayKey] = (data[todayKey] || 0) + 1;
+    localStorage.setItem(storageKey, JSON.stringify(data));
+
+    // Also sync to Firestore dailyPlays map
+    if (this.db && this.currentUser.isGoogleUser) {
+      try {
+        const userRef = this.db.collection('users').doc(this.currentUser.uid);
+        const fieldPath = `dailyPlays.${todayKey}`;
+        await userRef.update({
+          [fieldPath]: (typeof firebase !== 'undefined' && firebase.firestore) 
+            ? firebase.firestore.FieldValue.increment(1) 
+            : data[todayKey],
+          lastActive: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (err) {
+        try {
+          await this.db.collection('users').doc(this.currentUser.uid).set({
+            dailyPlays: { [todayKey]: data[todayKey] }
+          }, { merge: true });
+        } catch (e2) {}
+      }
+    }
+    return data[todayKey];
+  }
+
+  showArenaModal() {
+    if (!this.modeModal) return;
+    const name = this.currentUser ? this.currentUser.name : 'Player';
+    if (this.modeModalUsername) this.modeModalUsername.textContent = name;
+
+    const coins = window.walletManager ? window.walletManager.coins : 0;
+    if (this.tournamentWalletPill) this.tournamentWalletPill.textContent = `${coins} 🪙`;
+
+    const playsToday = this.getDailyTournamentPlays();
+    const remaining = Math.max(0, 5 - playsToday);
+
+    if (this.tournamentLimitPill) {
+      this.tournamentLimitPill.textContent = `${remaining}/5 Left Today`;
+      this.tournamentLimitPill.className = remaining > 0 ? 'meta-val cyan-text' : 'meta-val';
+    }
+
+    if (this.btnStartTournament) {
+      if (remaining <= 0) {
+        this.btnStartTournament.disabled = true;
+        this.btnStartTournament.innerHTML = `<span>⏳</span> Limit Reached (Resets 00:00 UTC)`;
+        this.btnStartTournament.style.opacity = '0.6';
+      } else {
+        this.btnStartTournament.disabled = false;
+        this.btnStartTournament.innerHTML = `<span>⚡</span> Enter Tournament (50 🪙) [${remaining}/5 Left]`;
+        this.btnStartTournament.style.opacity = '1';
+      }
+    }
+
+    if (this.tournamentErrorMsg) {
+      this.tournamentErrorMsg.style.display = 'none';
+      this.tournamentErrorMsg.textContent = '';
+    }
+
+    this.modeModal.classList.add('open');
+  }
+
+  hideArenaModal() {
+    if (this.modeModal) this.modeModal.classList.remove('open');
+  }
+
+  async handleTournamentEntry() {
+    this.gameApp.sound.playClick();
+    const errorEl = this.tournamentErrorMsg;
+
+    if (!this.currentUser || !this.currentUser.isGoogleUser) {
+      if (errorEl) {
+        errorEl.textContent = "⚠️ Only Google-verified players can enter Official Tournaments! Please sign in with Google.";
+        errorEl.style.display = 'block';
+      }
+      return;
+    }
+
+    const playsToday = this.getDailyTournamentPlays();
+    if (playsToday >= 5) {
+      if (errorEl) {
+        errorEl.textContent = "⚠️ You have reached your daily limit of 5 tournament matches! Resets at 00:00 UTC.";
+        errorEl.style.display = 'block';
+      }
+      return;
+    }
+
+    const currentCoins = window.walletManager ? window.walletManager.coins : 0;
+    if (currentCoins < 50) {
+      if (errorEl) {
+        errorEl.textContent = "⚠️ Insufficient coins! Entry fee is 50 🪙. Watch an ad to earn coins or play free practice mode.";
+        errorEl.style.display = 'block';
+      }
+      return;
+    }
+
+    // Deduct 50 coins entry fee
+    window.walletManager.coins -= 50;
+    window.walletManager.save();
+    if (window.realAdManager && window.realAdManager.showToast) {
+      window.realAdManager.showToast('🪙 50 Coins Entry Fee Deducted');
+    }
+
+    // Record match attempt
+    const newCount = await this.recordDailyTournamentPlay();
+
+    // Sync to Firestore
+    this.syncUserStatsToFirestore();
+
+    // Close modal and activate tournament mode in game
+    this.hideArenaModal();
+    this.gameApp.setTournamentMatch(true, newCount);
+    this.gameApp.resetGame();
+
+    if (window.leaderboardManager) {
+      window.leaderboardManager.render();
+    }
+  }
+
+  handlePracticeEntry() {
+    this.gameApp.sound.playClick();
+    this.hideArenaModal();
+    this.gameApp.setTournamentMatch(false);
+    this.gameApp.resetGame();
+    if (window.realAdManager && window.realAdManager.showToast) {
+      window.realAdManager.showToast('🎮 Practice Mode Active. No coins deducted!');
     }
   }
 
@@ -1007,8 +1269,10 @@ class AuthManager {
 
       const updatePayload = {
         uid: uid,
-        name: this.currentUser.name,
+        displayName: this.currentUser.name,
         email: this.currentUser.email,
+        photoURL: this.currentUser.photoURL || null,
+        isGoogleUser: !!this.currentUser.isGoogleUser,
         coins: window.walletManager ? window.walletManager.coins : 100,
         trophies: window.walletManager ? window.walletManager.trophies : 0,
         matchesPlayed: window.walletManager ? window.walletManager.matchesCompleted : 0,
@@ -1056,6 +1320,7 @@ class AuthManager {
     if (this.nameInput) this.nameInput.value = '';
     if (this.emailInput) this.emailInput.value = '';
     this.lockApp();
+    this.gameApp.setTournamentMatch(false);
     this.gameApp.resetGame();
 
     if (window.leaderboardManager) {
@@ -1570,34 +1835,222 @@ class LeaderboardManager {
     this.closeBtn = document.getElementById('close-leaderboard-btn');
     this.userNameEl = document.getElementById('lb-user-name');
     this.userTrophiesEl = document.getElementById('lb-user-trophies');
+    this.userSubEl = document.getElementById('lb-user-sub');
     this.guestPromptEl = document.getElementById('lb-guest-prompt');
     this.myRankCardEl = document.getElementById('my-rank-card');
     this.lbLoginBtn = document.getElementById('lb-login-btn');
     this.winnerModal = document.getElementById('tournament-winner-modal');
     this.claimWinnerBtn = document.getElementById('claim-winner-reward-btn');
 
-    // Verified authenticated tournament players (Guests never added)
-    this.mockLeaderboard = [
-      { name: 'Aman_Pro⚡', trophies: 840, isGuest: false },
-      { name: 'Kashmir_King👑', trophies: 710, isGuest: false },
-      { name: 'CyberZero🤖', trophies: 580, isGuest: false },
-      { name: 'Simran_X✨', trophies: 460, isGuest: false },
-      { name: 'Rohit_Kaata🎮', trophies: 390, isGuest: false },
-      { name: 'NinjaFuru⚔️', trophies: 310, isGuest: false },
-      { name: 'Pooja_Sharma🌸', trophies: 270, isGuest: false },
-      { name: 'Vikram_Apex🎯', trophies: 210, isGuest: false }
-    ];
+    // 👑 Winner Spotlight: Reigning Champion DOM Elements
+    this.championCardEl = document.getElementById('champion-spotlight-card');
+    this.championAvatarEl = document.getElementById('champion-avatar');
+    this.championNameEl = document.getElementById('champion-name');
+    this.championScoreEl = document.getElementById('champion-score');
+
+    this.db = null;
+    this.currentCycle = null;
+    this.reigningChampion = null;
+    this.leaderboardEntries = [];
+    this.unsubscribeLeaderboard = null;
 
     this.bindEvents();
+    this.initDatabaseAndCycle();
     this.startTimer();
+  }
+
+  initDatabaseAndCycle() {
+    if (typeof firebase !== 'undefined' && window.db) {
+      this.db = window.db;
+      this.loadTournamentCycle();
+      this.listenToLeaderboard();
+    } else {
+      const checkTimer = setInterval(() => {
+        if (typeof firebase !== 'undefined' && window.db) {
+          clearInterval(checkTimer);
+          this.db = window.db;
+          this.loadTournamentCycle();
+          this.listenToLeaderboard();
+        }
+      }, 500);
+      setTimeout(() => clearInterval(checkTimer), 6000);
+    }
+  }
+
+  async loadTournamentCycle() {
+    if (!this.db) return;
+    try {
+      const cycleDocRef = this.db.collection('tournaments').doc('current_cycle');
+
+      cycleDocRef.onSnapshot(async (doc) => {
+        const now = Date.now();
+        const CYCLE_MS = 3 * 24 * 60 * 60 * 1000;
+
+        if (!doc.exists) {
+          // Initialize first 3-Day cycle
+          const newCycle = {
+            cycleId: `cycle_${now}`,
+            startTime: firebase.firestore.Timestamp.fromMillis(now),
+            endTime: firebase.firestore.Timestamp.fromMillis(now + CYCLE_MS),
+            reigningChampion: null
+          };
+          await cycleDocRef.set(newCycle);
+          this.currentCycle = newCycle;
+          this.reigningChampion = null;
+          this.renderChampionSpotlight();
+          return;
+        }
+
+        const data = doc.data();
+        this.currentCycle = data;
+        const endMillis = (data.endTime && data.endTime.toMillis) ? data.endTime.toMillis() : (now + CYCLE_MS);
+
+        if (now >= endMillis) {
+          // 🏆 Cycle expired: Crown Reigning Champion & reset for next 3 days
+          await this.finalizeTournamentCycle(data);
+        } else {
+          this.reigningChampion = data.reigningChampion || null;
+          this.renderChampionSpotlight();
+        }
+      }, (err) => {
+        console.warn("Tournament cycle listener notice:", err);
+      });
+    } catch (e) {
+      console.warn("Error loading tournament cycle:", e);
+    }
+  }
+
+  async finalizeTournamentCycle(oldCycle) {
+    if (!this.db) return;
+    try {
+      const now = Date.now();
+      const CYCLE_MS = 3 * 24 * 60 * 60 * 1000;
+
+      // Query Rank #1 verified Google user from current leaderboard
+      let champion = oldCycle.reigningChampion || null;
+      try {
+        const topSnap = await this.db.collection('leaderboard')
+          .where('isGoogleUser', '==', true)
+          .orderBy('score', 'desc')
+          .limit(1)
+          .get();
+
+        if (!topSnap.empty) {
+          const topDoc = topSnap.docs[0];
+          const topData = topDoc.data();
+          champion = {
+            uid: topDoc.id,
+            name: topData.name || 'Champion',
+            photoURL: topData.photoURL || '',
+            score: topData.score || 0,
+            cycleWon: oldCycle.cycleId || `cycle_${now}`
+          };
+
+          // If current logged in player won, award 100 coins
+          if (window.authManager && window.authManager.currentUser && window.authManager.currentUser.uid === topDoc.id) {
+            localStorage.setItem('furu_tournament_winner_reward', JSON.stringify({
+              amount: 100,
+              claimed: false,
+              cycleWon: oldCycle.cycleId
+            }));
+            this.checkForWinnerReward();
+          }
+        }
+      } catch (err) {
+        console.warn("Error querying top player for champion spotlight:", err);
+      }
+
+      // Reset cycle & freeze Reigning Champion
+      const newCycle = {
+        cycleId: `cycle_${now}`,
+        startTime: firebase.firestore.Timestamp.fromMillis(now),
+        endTime: firebase.firestore.Timestamp.fromMillis(now + CYCLE_MS),
+        reigningChampion: champion
+      };
+
+      await this.db.collection('tournaments').doc('current_cycle').set(newCycle);
+
+      // Archive previous cycle
+      if (oldCycle.cycleId) {
+        await this.db.collection('tournaments').doc(oldCycle.cycleId).set({
+          ...oldCycle,
+          archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          winner: champion
+        }, { merge: true });
+      }
+
+      this.currentCycle = newCycle;
+      this.reigningChampion = champion;
+      this.renderChampionSpotlight();
+    } catch (e) {
+      console.warn("Error finalizing cycle:", e);
+    }
+  }
+
+  listenToLeaderboard() {
+    if (!this.db) return;
+    try {
+      if (this.unsubscribeLeaderboard) {
+        this.unsubscribeLeaderboard();
+      }
+
+      // Query only verified Google users ordered by score descending
+      this.unsubscribeLeaderboard = this.db.collection('leaderboard')
+        .where('isGoogleUser', '==', true)
+        .orderBy('score', 'desc')
+        .limit(20)
+        .onSnapshot((snapshot) => {
+          this.leaderboardEntries = [];
+          snapshot.forEach(doc => {
+            this.leaderboardEntries.push({ id: doc.id, ...doc.data() });
+          });
+          this.render();
+        }, (err) => {
+          console.warn("Primary leaderboard query error, attempting index fallback:", err);
+          // Fallback query without compound filter while index builds
+          this.db.collection('leaderboard').orderBy('score', 'desc').limit(20).get().then(snap => {
+            this.leaderboardEntries = snap.docs
+              .map(d => ({ id: d.id, ...d.data() }))
+              .filter(e => e.isGoogleUser === true);
+            this.render();
+          }).catch(e => console.warn("Fallback query error:", e));
+        });
+    } catch (e) {
+      console.warn("listenToLeaderboard error:", e);
+    }
+  }
+
+  renderChampionSpotlight() {
+    if (!this.championCardEl) return;
+    if (this.reigningChampion && this.reigningChampion.name) {
+      if (this.championNameEl) this.championNameEl.textContent = this.reigningChampion.name;
+      if (this.championScoreEl) {
+        this.championScoreEl.textContent = `${this.reigningChampion.score} Pts • Reigning Champion 👑`;
+      }
+      if (this.championAvatarEl && this.reigningChampion.photoURL) {
+        this.championAvatarEl.src = this.reigningChampion.photoURL;
+      }
+    } else {
+      if (this.championNameEl) this.championNameEl.textContent = 'Awaiting Champion...';
+      if (this.championScoreEl) {
+        this.championScoreEl.textContent = 'Top player in 3-day cycle claims the Crown!';
+      }
+      if (this.championAvatarEl) this.championAvatarEl.src = './icon.svg';
+    }
   }
 
   startTimer() {
     const updateCountdown = () => {
-      // 3-Day Tournament Cycle (72 Hours = 259,200,000 ms)
       const CYCLE_MS = 3 * 24 * 60 * 60 * 1000;
-      const now = Date.now();
-      const remaining = CYCLE_MS - (now % CYCLE_MS);
+      let remaining = 0;
+
+      if (this.currentCycle && this.currentCycle.endTime) {
+        const endMillis = this.currentCycle.endTime.toMillis ? this.currentCycle.endTime.toMillis() : this.currentCycle.endTime;
+        remaining = Math.max(0, endMillis - Date.now());
+      } else {
+        const now = Date.now();
+        remaining = CYCLE_MS - (now % CYCLE_MS);
+      }
 
       const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
       const hours = Math.floor((remaining / (1000 * 60 * 60)) % 24);
@@ -1608,72 +2061,135 @@ class LeaderboardManager {
       }
     };
     updateCountdown();
-    setInterval(updateCountdown, 60000);
+    setInterval(updateCountdown, 30000);
   }
 
   render() {
     if (!this.listEl) return;
-    const isLoggedIn = window.authManager && window.authManager.isLoggedIn();
+    const auth = window.authManager;
+    const isGoogleUser = auth && auth.currentUser && auth.currentUser.isGoogleUser;
 
-    if (!isLoggedIn) {
+    if (!isGoogleUser) {
       // 🔒 GUEST MODE: Show Guest Warning & Hide Current User Rank Row
       if (this.guestPromptEl) this.guestPromptEl.style.display = 'flex';
       if (this.myRankCardEl) this.myRankCardEl.style.display = 'none';
-
-      // Only display verified registered players. Guest is NOT added!
-      const guestFilteredList = [...this.mockLeaderboard]
-        .filter(entry => !entry.isGuest)
-        .sort((a, b) => b.trophies - a.trophies)
-        .slice(0, 10);
-
-      this.renderList(guestFilteredList);
+      this.renderList(this.leaderboardEntries);
       return;
     }
 
-    // ⚡ LOGGED-IN MODE: Hide Warning & Show Authenticated User's Real Rank
+    // ⚡ GOOGLE AUTHENTICATED USER: Hide Warning & Show Authenticated User's Real Rank
     if (this.guestPromptEl) this.guestPromptEl.style.display = 'none';
     if (this.myRankCardEl) this.myRankCardEl.style.display = 'flex';
 
-    const currentUser = window.authManager.currentUser;
-    const currentTrophies = window.walletManager ? window.walletManager.trophies : 0;
+    const currentUser = auth.currentUser;
+    const currentUid = currentUser.uid;
+
+    // Find current user in leaderboardEntries
+    const userIndex = this.leaderboardEntries.findIndex(e => e.uid === currentUid || e.id === currentUid);
+    const userEntry = userIndex !== -1 ? this.leaderboardEntries[userIndex] : null;
+    const userScore = userEntry ? userEntry.score : (window.walletManager ? window.walletManager.trophies : 0);
+    const playsToday = auth.getDailyTournamentPlays();
+    const remaining = Math.max(0, 5 - playsToday);
 
     if (this.userNameEl) this.userNameEl.textContent = currentUser.name;
-    if (this.userTrophiesEl) this.userTrophiesEl.textContent = currentTrophies;
+    if (this.userTrophiesEl) this.userTrophiesEl.textContent = userScore;
+    if (this.userSubEl) {
+      const rankText = userIndex !== -1 ? `Rank #${userIndex + 1}` : 'Unranked';
+      this.userSubEl.textContent = `Official ${rankText} • ${remaining}/5 Left Today`;
+    }
 
-    // Merge authenticated user into tournament ranking
-    const playerEntry = {
-      name: `${currentUser.name} (You)`,
-      trophies: currentTrophies,
-      isPlayer: true,
-      isGuest: false
-    };
-
-    const combined = [...this.mockLeaderboard.filter(e => !e.isGuest), playerEntry]
-      .sort((a, b) => b.trophies - a.trophies)
-      .slice(0, 10);
-
-    this.renderList(combined);
+    this.renderList(this.leaderboardEntries);
   }
 
   renderList(items) {
+    if (!this.listEl) return;
+    if (!items || items.length === 0) {
+      // WIPE ALL MOCK NAMES: Show sleek empty state placeholder when no real scores exist
+      this.listEl.innerHTML = `
+        <div class="lb-empty-state">
+          <span>🏆</span>
+          <p><strong>Official Tournament Active</strong></p>
+          <p style="font-size: 11px; margin-top: 4px; color: var(--text-muted);">No scores recorded in this 3-Day cycle yet.<br>Play a tournament match to claim Rank #1!</p>
+        </div>
+      `;
+      return;
+    }
+
+    const currentUid = window.authManager && window.authManager.currentUser ? window.authManager.currentUser.uid : null;
+
     this.listEl.innerHTML = items.map((entry, idx) => {
       const rankNum = idx + 1;
       const medal = rankNum === 1 ? '🥇' : rankNum === 2 ? '🥈' : rankNum === 3 ? '🥉' : `#${rankNum}`;
       const topClass = rankNum <= 3 ? `top-${rankNum}` : '';
-      const playerStyle = entry.isPlayer
-        ? 'style="border: 1px solid var(--neon-cyan); background: rgba(0, 240, 255, 0.1); font-weight: 800;"'
+      const isCurrentPlayer = currentUid && (entry.uid === currentUid || entry.id === currentUid);
+      const playerStyle = isCurrentPlayer
+        ? 'style="border: 1px solid var(--neon-cyan); background: rgba(0, 240, 255, 0.12); font-weight: 800;"'
         : '';
+      const avatarHtml = entry.photoURL
+        ? `<img src="${entry.photoURL}" class="player-avatar-small" alt="${entry.name}" />`
+        : `<span style="font-size: 16px;">👤</span>`;
 
       return `
         <div class="leaderboard-item ${topClass}" ${playerStyle}>
           <div class="rank-badge" style="font-size: 13px;">${medal}</div>
-          <div class="rank-info">
-            <span class="rank-name">${entry.name}</span>
+          <div class="rank-info" style="display: flex; align-items: center; gap: 8px;">
+            ${avatarHtml}
+            <span class="rank-name">${entry.name || 'Player'}${isCurrentPlayer ? ' (You)' : ''}</span>
           </div>
-          <div class="rank-score">${entry.trophies} 🏆</div>
+          <div class="rank-score">${entry.score || 0} pts</div>
         </div>
       `;
     }).join('');
+  }
+
+  // Record points earned from 5 daily matches (+25 on win, +5 on draw, -5 on loss)
+  async recordTournamentScore(pointDelta, isWin) {
+    if (!window.authManager || !window.authManager.currentUser) return;
+    const user = window.authManager.currentUser;
+
+    // Strict Access Control: Only Google-verified users can post scores to official Leaderboard!
+    if (!user.isGoogleUser) {
+      console.log("🔒 Guest/Username user: Tournament scores not recorded on public leaderboard.");
+      return;
+    }
+
+    // Update in-memory wallet trophies
+    if (window.walletManager) {
+      window.walletManager.trophies = Math.max(0, (window.walletManager.trophies || 0) + pointDelta);
+      window.walletManager.save();
+    }
+
+    if (this.db) {
+      try {
+        const lbRef = this.db.collection('leaderboard').doc(user.uid);
+        await lbRef.set({
+          uid: user.uid,
+          name: user.name,
+          email: user.email,
+          photoURL: user.photoURL || null,
+          score: firebase.firestore.FieldValue.increment(pointDelta),
+          matchesWon: isWin ? firebase.firestore.FieldValue.increment(1) : firebase.firestore.FieldValue.increment(0),
+          matchesPlayed: firebase.firestore.FieldValue.increment(1),
+          isGoogleUser: true,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        // Also sync to user profile
+        const userRef = this.db.collection('users').doc(user.uid);
+        await userRef.set({
+          trophies: firebase.firestore.FieldValue.increment(pointDelta),
+          matchesPlayed: firebase.firestore.FieldValue.increment(1),
+          matchesWon: isWin ? firebase.firestore.FieldValue.increment(1) : firebase.firestore.FieldValue.increment(0),
+          lastActive: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        console.log(`🏆 Tournament score updated for ${user.name}: ${pointDelta > 0 ? '+' : ''}${pointDelta} pts`);
+      } catch (err) {
+        console.warn("Error recording tournament score:", err);
+      }
+    }
+
+    this.render();
   }
 
   // 3-Day Tournament Winner Reward Check (Called upon app launch and login)
@@ -1707,7 +2223,7 @@ class LeaderboardManager {
     window.walletManager.coins += 100;
     window.walletManager.save();
 
-    // 2. Mark reward as claimed in localStorage
+    // 2. Mark reward as claimed in localStorage and Firestore
     try {
       const pendingReward = localStorage.getItem('furu_tournament_winner_reward');
       if (pendingReward) {
@@ -1722,43 +2238,23 @@ class LeaderboardManager {
           claimedAt: new Date().toISOString()
         }));
       }
+
+      if (this.db && window.authManager && window.authManager.currentUser) {
+        const uid = window.authManager.currentUser.uid;
+        this.db.collection('users').doc(uid).set({
+          coins: firebase.firestore.FieldValue.increment(100),
+          lastRewardClaimed: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      }
     } catch (e) {}
 
     // 3. Close modal and play sound
     if (this.winnerModal) this.winnerModal.classList.remove('open');
-    this.gameApp.sound.playClick();
+    this.gameApp.sound.playWin();
     this.gameApp.confetti.blast();
 
     if (window.realAdManager && window.realAdManager.showToast) {
-      window.realAdManager.showToast('🎉 +100 Tournament Winner Coins Added!');
-    }
-  }
-
-  // Sync tournament trophies to Firebase Firestore or REST Backend
-  async syncScoreToDatabase() {
-    // RULE 1: Guest users are NEVER synced or recorded in leaderboard
-    if (!window.authManager || !window.authManager.isLoggedIn()) {
-      console.log('🔒 Guest player: Tournament score will not be synced to global database.');
-      return;
-    }
-
-    const user = window.authManager.currentUser;
-    const trophies = window.walletManager ? window.walletManager.trophies : 0;
-
-    // Real Firebase Firestore integration (if firebase SDK loaded)
-    if (window.db && window.firebase) {
-      try {
-        await window.db.collection('tournament_leaderboard').doc(user.email).set({
-          userId: user.email,
-          displayName: user.name,
-          trophies: trophies,
-          isGuest: false,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-        console.log('✅ Leaderboard synced to Cloud Firestore');
-      } catch (err) {
-        console.warn('Firestore sync failed:', err);
-      }
+      window.realAdManager.showToast('🎉 +100 Tournament Reigning Champion Coins Added!');
     }
   }
 

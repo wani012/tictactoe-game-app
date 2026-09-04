@@ -34,81 +34,75 @@ exports.distributeTournamentRewards = onSchedule(
     console.log("🚀 Starting 3-Day Tournament Reward & Reset Cycle...");
 
     const now = new Date();
-    const seasonId = `season_${now.toISOString().slice(0, 10).replace(/-/g, "_")}`;
+    const CYCLE_MS = 3 * 24 * 60 * 60 * 1000;
+    const cycleId = `cycle_${now.getTime()}`;
 
     try {
-      // 1. Fetch Rank #1 Player (Excluding any guest accounts)
+      // 1. Fetch Rank #1 Player (Strictly Google verified users)
       const topPlayerSnapshot = await db
-        .collection("tournament_leaderboard")
-        .where("isGuest", "==", false)
-        .orderBy("trophies", "desc")
+        .collection("leaderboard")
+        .where("isGoogleUser", "==", true)
+        .orderBy("score", "desc")
         .limit(1)
         .get();
 
-      if (topPlayerSnapshot.empty) {
-        console.log("ℹ️ No active registered players found for this tournament season.");
-        return;
+      let champion = null;
+
+      if (!topPlayerSnapshot.empty) {
+        const winnerDoc = topPlayerSnapshot.docs[0];
+        const winnerData = winnerDoc.data();
+        const winnerId = winnerData.uid || winnerDoc.id;
+        const winningScore = winnerData.score || 0;
+
+        if (winningScore > 0) {
+          champion = {
+            uid: winnerId,
+            name: winnerData.name || "Champion",
+            photoURL: winnerData.photoURL || "",
+            score: winningScore,
+            cycleWon: cycleId
+          };
+
+          console.log(`🏆 Rank #1 Winner Found: ${champion.name} (${winnerId}) with ${winningScore} pts`);
+
+          // 2. Credit +100 Coins & set celebration notification flag in winner's profile
+          const userRef = db.collection("users").doc(winnerId);
+          await userRef.set(
+            {
+              coins: admin.firestore.FieldValue.increment(100),
+              unclaimedTournamentReward: {
+                amount: 100,
+                cycleWon: cycleId,
+                claimed: false,
+                awardedAt: admin.firestore.FieldValue.serverTimestamp()
+              },
+              lastActive: admin.firestore.FieldValue.serverTimestamp()
+            },
+            { merge: true }
+          );
+
+          console.log(`✅ +100 Coins credited to ${champion.name}'s wallet.`);
+        }
       }
 
-      const winnerDoc = topPlayerSnapshot.docs[0];
-      const winnerData = winnerDoc.data();
-      const winnerId = winnerData.userId || winnerDoc.id;
-      const winningTrophies = winnerData.trophies || 0;
-
-      // Only reward if winner has at least 1 trophy
-      if (winningTrophies <= 0) {
-        console.log("ℹ️ Rank #1 player has 0 trophies. No reward distribution needed.");
-        return;
-      }
-
-      console.log(`🏆 Rank #1 Winner Found: ${winnerData.displayName} (${winnerId}) with ${winningTrophies} 🏆`);
-
-      const batch = db.batch();
-
-      // 2. Credit +100 Coins & set celebration notification flag in winner's profile
-      const userRef = db.collection("users").doc(winnerId);
-      batch.set(
-        userRef,
-        {
-          coins: admin.firestore.FieldValue.increment(100),
-          unclaimedTournamentReward: {
-            amount: 100,
-            seasonId: seasonId,
-            rank: 1,
-            claimed: false,
-            awardedAt: admin.firestore.FieldValue.serverTimestamp()
-          },
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        },
-        { merge: true }
-      );
-
-      // 3. Record Tournament Season History
-      const tournamentRef = db.collection("tournaments").doc(seasonId);
-      batch.set(tournamentRef, {
-        seasonId: seasonId,
-        endedAt: admin.firestore.FieldValue.serverTimestamp(),
-        winner: {
-          userId: winnerId,
-          displayName: winnerData.displayName,
-          winningTrophies: winningTrophies,
-          rewardCoins: 100
-        },
-        status: "completed"
+      // 3. Freeze Reigning Champion & Start new 3-day cycle in /tournaments/current_cycle
+      await db.collection("tournaments").doc("current_cycle").set({
+        cycleId: cycleId,
+        startTime: admin.firestore.Timestamp.fromDate(now),
+        endTime: admin.firestore.Timestamp.fromDate(new Date(now.getTime() + CYCLE_MS)),
+        reigningChampion: champion
       });
 
-      // Commit winner credit & season record
-      await batch.commit();
-      console.log(`✅ +100 Coins credited to ${winnerData.displayName}'s wallet.`);
-
       // 4. Reset all tournament scores to 0 for the next 3-day cycle
-      const allPlayersSnapshot = await db.collection("tournament_leaderboard").get();
+      const allPlayersSnapshot = await db.collection("leaderboard").get();
       const resetBatch = db.batch();
 
       allPlayersSnapshot.docs.forEach((doc) => {
         resetBatch.update(doc.ref, {
-          trophies: 0,
-          lastResetAt: admin.firestore.FieldValue.serverTimestamp()
+          score: 0,
+          matchesPlayed: 0,
+          matchesWon: 0,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
       });
 
