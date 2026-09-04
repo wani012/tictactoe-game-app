@@ -1,9 +1,9 @@
-const CACHE_NAME = 'furu-v5-monetag-11722361';
+const CACHE_NAME = 'furu-v6-monetag-strict';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=4.1',
-  './game.js?v=4.1',
+  './style.css?v=4.2',
+  './game.js?v=4.2',
   './manifest.json',
   './icon.svg'
 ];

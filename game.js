@@ -966,52 +966,55 @@ class RealAdManager {
     const zoneId = this.zoneId;
     if (!document.querySelector(`script[data-zone="${zoneId}"]`)) {
       const script = document.createElement('script');
-      script.src = '//alwingulla.com/88/tag.min.js';
+      script.src = 'https://alwingulla.com/88/tag.min.js';
       script.setAttribute('data-zone', zoneId);
       script.setAttribute('data-sdk', `show_${zoneId}`);
       script.async = true;
       script.setAttribute('data-cfasync', 'false');
       document.head.appendChild(script);
-      console.log(`📡 Monetag SDK injected for Zone: ${zoneId}`);
+      console.log(`📡 Monetag SDK script tag injected for Zone: ${zoneId}`);
     }
   }
 
-  showToast(message) {
+  showToast(message, isError = false) {
     let toast = document.getElementById('ad-toast');
     if (!toast) {
       toast = document.createElement('div');
       toast.id = 'ad-toast';
-      toast.style.cssText = `
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(13, 18, 28, 0.95);
-        color: #00f0ff;
-        border: 1px solid rgba(0, 240, 255, 0.35);
-        border-radius: 9999px;
-        padding: 10px 22px;
-        font-size: 13px;
-        font-weight: 600;
-        z-index: 10000;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0,240,255,0.25);
-        transition: opacity 0.3s ease, transform 0.3s ease;
-        pointer-events: none;
-      `;
       document.body.appendChild(toast);
     }
+    
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: ${isError ? 'rgba(239, 68, 68, 0.95)' : 'rgba(13, 18, 28, 0.95)'};
+      color: ${isError ? '#ffffff' : '#00f0ff'};
+      border: 1px solid ${isError ? 'rgba(239, 68, 68, 0.6)' : 'rgba(0, 240, 255, 0.4)'};
+      border-radius: 9999px;
+      padding: 12px 24px;
+      font-size: 13px;
+      font-weight: 700;
+      z-index: 10000;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.85), 0 0 20px ${isError ? 'rgba(239,68,68,0.3)' : 'rgba(0,240,255,0.3)'};
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+      text-align: center;
+      max-width: 90vw;
+    `;
     toast.textContent = message;
     toast.style.opacity = '1';
     toast.style.transform = 'translateX(-50%) translateY(0)';
     setTimeout(() => {
       toast.style.opacity = '0';
       toast.style.transform = 'translateX(-50%) translateY(10px)';
-    }, 2500);
+    }, 3200);
   }
 
   async showRewardedVideo(onReward, onDismiss) {
     const zoneId = this.zoneId;
-    const monetagSdkFunction = window[`show_${zoneId}`] || window.show_11722361;
+    const getSdkFunction = () => window[`show_${zoneId}`] || window.show_11722361;
 
     // 1. Native Capacitor AdMob for Android APK
     if (this.isCapacitor) {
@@ -1031,30 +1034,66 @@ class RealAdManager {
         await AdMob.showRewardVideoAd();
         return;
       } catch (err) {
-        console.warn('Native rewarded error, falling back to Monetag Web', err);
+        console.warn('Native AdMob error, falling back to Monetag Web', err);
       }
     }
 
-    // 2. Real Monetag Web SDK (Zone ID: 11722361)
-    if (typeof monetagSdkFunction === 'function') {
+    // Helper: Execute Monetag ad with STRICT reward-on-completion only
+    const triggerAd = (sdkFn) => {
       this.showToast('🎬 Loading Sponsor Ad...');
       try {
-        await monetagSdkFunction();
-        console.log('✅ Monetag Ad successfully completed!');
-        if (onReward) onReward({ amount: 100, type: 'coins' });
-        if (onDismiss) onDismiss();
-      } catch (adError) {
-        console.warn('Monetag ad completed or closed:', adError);
-        if (onReward) onReward({ amount: 100, type: 'coins' });
+        const adPromise = sdkFn();
+        if (adPromise && typeof adPromise.then === 'function') {
+          adPromise
+            .then(() => {
+              // ✅ STRICT REWARD: User completed watching the real ad!
+              console.log('✅ Monetag Rewarded Ad watched successfully!');
+              this.showToast('🎉 Ad watched! +100 Coins added!');
+              if (onReward) onReward({ amount: 100, type: 'coins' });
+              if (onDismiss) onDismiss();
+            })
+            .catch((adError) => {
+              // ❌ NO REWARD: Ad was closed early, cancelled or failed!
+              console.warn('Monetag ad cancelled or incomplete:', adError);
+              this.showToast('⚠️ Ad poora nahi dekha gaya. Coins nahi mile.', true);
+              if (onDismiss) onDismiss();
+            });
+        } else {
+          console.warn('Monetag SDK did not return a Promise');
+          if (onDismiss) onDismiss();
+        }
+      } catch (e) {
+        console.error('Error launching Monetag ad:', e);
+        this.showToast('⚠️ Ad open karne me dikkat aayi. Kripya dobara try karein.', true);
         if (onDismiss) onDismiss();
       }
+    };
+
+    // 2. Check if Monetag SDK is ready immediately
+    let monetagSdkFunction = getSdkFunction();
+    if (typeof monetagSdkFunction === 'function') {
+      triggerAd(monetagSdkFunction);
       return;
     }
 
-    // 3. Graceful fallback if ad network is still downloading or adblock is on
-    this.showToast('🎁 +100 Free Coins claimed!');
-    if (onReward) onReward({ amount: 100, type: 'coins' });
-    if (onDismiss) onDismiss();
+    // 3. If SDK script is still loading, wait up to 2.5 seconds (polling every 200ms)
+    this.showToast('⏳ Ad server se connect ho raha hai...');
+    let attempts = 0;
+    const maxAttempts = 12; // 12 * 200ms = 2.4s
+    const checkInterval = setInterval(() => {
+      attempts++;
+      monetagSdkFunction = getSdkFunction();
+      if (typeof monetagSdkFunction === 'function') {
+        clearInterval(checkInterval);
+        triggerAd(monetagSdkFunction);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        // ❌ NO BYPASS: Blocked by AdBlocker or network timeout
+        console.warn('Monetag SDK not available. Likely blocked by AdBlocker.');
+        this.showToast('❌ Ad load nahi hua! AdBlocker off karke try karein.', true);
+        if (onDismiss) onDismiss();
+      }
+    }, 200);
   }
 
   async showInterstitial(onDismiss) {
@@ -1062,7 +1101,15 @@ class RealAdManager {
     const monetagSdkFunction = window[`show_${zoneId}`] || window.show_11722361;
     if (typeof monetagSdkFunction === 'function') {
       try {
-        await monetagSdkFunction();
+        const adPromise = monetagSdkFunction();
+        if (adPromise && typeof adPromise.then === 'function') {
+          adPromise.then(() => {
+            if (onDismiss) onDismiss();
+          }).catch(() => {
+            if (onDismiss) onDismiss();
+          });
+          return;
+        }
       } catch (e) {
         console.warn('Monetag interstitial closed:', e);
       }
