@@ -25,12 +25,23 @@
   
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=4.3">
+  <link rel="stylesheet" href="./style.css?v=5.0">
 
   <!-- Monetag Real In-App / Rewarded SDK (Defines window.show_11722361) -->
   <script src="https://libtl.com/sdk.js" data-zone="11722361" data-sdk="show_11722361"></script>
   <!-- Monetag Website Tag -->
   <script src="https://alwingulla.com/88/tag.min.js" data-zone="11722361" async data-cfasync="false"></script>
+
+  <!-- Force clear any old service worker cache -->
+  <script>
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        names.forEach(function(n) {
+          if (n !== 'furu-v8-final') caches.delete(n);
+        });
+      });
+    }
+  </script>
 </head>
 <body>
 
@@ -289,6 +300,6 @@
     </div>
   </div>
 
-  <script src="./game.js?v=4.3"></script>
+  <script src="./game.js?v=5.0"></script>
 </body>
 </html>
