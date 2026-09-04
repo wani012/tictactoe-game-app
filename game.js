@@ -687,12 +687,22 @@ class AuthManager {
     this.bindEvents();
   }
 
+  isLoggedIn() {
+    return !!(this.currentUser && this.currentUser.email);
+  }
+
   checkSession() {
     try {
       const savedUser = localStorage.getItem('furu_auth_user');
       if (savedUser) {
         this.currentUser = JSON.parse(savedUser);
         this.unlockApp();
+        setTimeout(() => {
+          if (window.leaderboardManager) {
+            window.leaderboardManager.render();
+            window.leaderboardManager.checkForWinnerReward();
+          }
+        }, 500);
       } else {
         this.lockApp();
       }
@@ -752,6 +762,13 @@ class AuthManager {
     this.gameApp.sound.playWin();
     this.gameApp.confetti.blast();
     this.unlockApp();
+
+    // Trigger leaderboard update & reward check
+    if (window.leaderboardManager) {
+      window.leaderboardManager.render();
+      window.leaderboardManager.checkForWinnerReward();
+      window.leaderboardManager.syncScoreToDatabase();
+    }
   }
 
   handleLogout() {
@@ -765,18 +782,28 @@ class AuthManager {
     this.emailInput.value = '';
     this.lockApp();
     this.gameApp.resetGame();
+
+    if (window.leaderboardManager) {
+      window.leaderboardManager.render();
+    }
   }
 
   lockApp() {
     this.loginOverlay.classList.remove('hidden-gate');
     this.displayName.textContent = 'Guest';
     this.displayEmail.textContent = '(Not logged in)';
+    if (window.leaderboardManager) {
+      window.leaderboardManager.render();
+    }
   }
 
   unlockApp() {
     this.loginOverlay.classList.add('hidden-gate');
     this.displayName.textContent = this.currentUser.name;
     this.displayEmail.textContent = `(${this.currentUser.email})`;
+    if (window.leaderboardManager) {
+      window.leaderboardManager.render();
+    }
   }
 }
 
@@ -852,16 +879,25 @@ class WalletManager {
     this.coins += this.WIN_REWARD;
     this.trophies += this.TROPHY_WIN;
     this.save();
+    if (window.leaderboardManager) {
+      window.leaderboardManager.syncScoreToDatabase();
+    }
   }
 
   recordDraw() {
     this.trophies += this.TROPHY_DRAW;
     this.save();
+    if (window.leaderboardManager) {
+      window.leaderboardManager.syncScoreToDatabase();
+    }
   }
 
   recordLoss() {
     this.trophies = Math.max(0, this.trophies - this.TROPHY_LOSS);
     this.save();
+    if (window.leaderboardManager) {
+      window.leaderboardManager.syncScoreToDatabase();
+    }
   }
 
   creditAdReward() {
@@ -1157,6 +1193,8 @@ class RealAdManager {
 
 // ==========================================================
 // 3. TOURNAMENT LEADERBOARD MANAGER
+//    - ONLY LOGGED-IN USERS IN LEADERBOARD (GUESTS FILTERED OUT)
+//    - 3-DAY TOURNAMENT AUTOMATION & 100 COINS REWARD POPUP
 // ==========================================================
 class LeaderboardManager {
   constructor(gameApp) {
@@ -1168,16 +1206,22 @@ class LeaderboardManager {
     this.closeBtn = document.getElementById('close-leaderboard-btn');
     this.userNameEl = document.getElementById('lb-user-name');
     this.userTrophiesEl = document.getElementById('lb-user-trophies');
+    this.guestPromptEl = document.getElementById('lb-guest-prompt');
+    this.myRankCardEl = document.getElementById('my-rank-card');
+    this.lbLoginBtn = document.getElementById('lb-login-btn');
+    this.winnerModal = document.getElementById('tournament-winner-modal');
+    this.claimWinnerBtn = document.getElementById('claim-winner-reward-btn');
 
+    // Verified authenticated tournament players (Guests never added)
     this.mockLeaderboard = [
-      { name: 'Aman_Pro⚡', trophies: 840 },
-      { name: 'Kashmir_King👑', trophies: 710 },
-      { name: 'CyberZero🤖', trophies: 580 },
-      { name: 'Simran_X✨', trophies: 460 },
-      { name: 'Rohit_Kaata🎮', trophies: 390 },
-      { name: 'NinjaFuru⚔️', trophies: 310 },
-      { name: 'Pooja_Sharma🌸', trophies: 270 },
-      { name: 'Vikram_Apex🎯', trophies: 210 }
+      { name: 'Aman_Pro⚡', trophies: 840, isGuest: false },
+      { name: 'Kashmir_King👑', trophies: 710, isGuest: false },
+      { name: 'CyberZero🤖', trophies: 580, isGuest: false },
+      { name: 'Simran_X✨', trophies: 460, isGuest: false },
+      { name: 'Rohit_Kaata🎮', trophies: 390, isGuest: false },
+      { name: 'NinjaFuru⚔️', trophies: 310, isGuest: false },
+      { name: 'Pooja_Sharma🌸', trophies: 270, isGuest: false },
+      { name: 'Vikram_Apex🎯', trophies: 210, isGuest: false }
     ];
 
     this.bindEvents();
@@ -1186,15 +1230,14 @@ class LeaderboardManager {
 
   startTimer() {
     const updateCountdown = () => {
-      const now = new Date();
-      const nextSunday = new Date();
-      nextSunday.setDate(now.getDate() + (7 - now.getDay()) % 7 || 7);
-      nextSunday.setHours(23, 59, 59, 999);
+      // 3-Day Tournament Cycle (72 Hours = 259,200,000 ms)
+      const CYCLE_MS = 3 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const remaining = CYCLE_MS - (now % CYCLE_MS);
 
-      const diff = nextSunday - now;
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const minutes = Math.floor((diff / 1000 / 60) % 60);
+      const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((remaining / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((remaining / 1000 / 60) % 60);
 
       if (this.timerEl) {
         this.timerEl.textContent = `${days}d ${hours}h ${minutes}m`;
@@ -1206,23 +1249,56 @@ class LeaderboardManager {
 
   render() {
     if (!this.listEl) return;
-    const currentName = window.authManager?.currentUser?.name || 'You';
+    const isLoggedIn = window.authManager && window.authManager.isLoggedIn();
+
+    if (!isLoggedIn) {
+      // 🔒 GUEST MODE: Show Guest Warning & Hide Current User Rank Row
+      if (this.guestPromptEl) this.guestPromptEl.style.display = 'flex';
+      if (this.myRankCardEl) this.myRankCardEl.style.display = 'none';
+
+      // Only display verified registered players. Guest is NOT added!
+      const guestFilteredList = [...this.mockLeaderboard]
+        .filter(entry => !entry.isGuest)
+        .sort((a, b) => b.trophies - a.trophies)
+        .slice(0, 10);
+
+      this.renderList(guestFilteredList);
+      return;
+    }
+
+    // ⚡ LOGGED-IN MODE: Hide Warning & Show Authenticated User's Real Rank
+    if (this.guestPromptEl) this.guestPromptEl.style.display = 'none';
+    if (this.myRankCardEl) this.myRankCardEl.style.display = 'flex';
+
+    const currentUser = window.authManager.currentUser;
     const currentTrophies = window.walletManager ? window.walletManager.trophies : 0;
 
-    if (this.userNameEl) this.userNameEl.textContent = currentName;
+    if (this.userNameEl) this.userNameEl.textContent = currentUser.name;
     if (this.userTrophiesEl) this.userTrophiesEl.textContent = currentTrophies;
 
-    // Merge current player into the tournament ranking
-    const playerEntry = { name: `${currentName} (You)`, trophies: currentTrophies, isPlayer: true };
-    const combined = [...this.mockLeaderboard, playerEntry]
+    // Merge authenticated user into tournament ranking
+    const playerEntry = {
+      name: `${currentUser.name} (You)`,
+      trophies: currentTrophies,
+      isPlayer: true,
+      isGuest: false
+    };
+
+    const combined = [...this.mockLeaderboard.filter(e => !e.isGuest), playerEntry]
       .sort((a, b) => b.trophies - a.trophies)
       .slice(0, 10);
 
-    this.listEl.innerHTML = combined.map((entry, idx) => {
+    this.renderList(combined);
+  }
+
+  renderList(items) {
+    this.listEl.innerHTML = items.map((entry, idx) => {
       const rankNum = idx + 1;
       const medal = rankNum === 1 ? '🥇' : rankNum === 2 ? '🥈' : rankNum === 3 ? '🥉' : `#${rankNum}`;
       const topClass = rankNum <= 3 ? `top-${rankNum}` : '';
-      const playerStyle = entry.isPlayer ? 'style="border: 1px solid var(--neon-cyan); background: rgba(0, 240, 255, 0.08); font-weight: 800;"' : '';
+      const playerStyle = entry.isPlayer
+        ? 'style="border: 1px solid var(--neon-cyan); background: rgba(0, 240, 255, 0.1); font-weight: 800;"'
+        : '';
 
       return `
         <div class="leaderboard-item ${topClass}" ${playerStyle}>
@@ -1234,6 +1310,92 @@ class LeaderboardManager {
         </div>
       `;
     }).join('');
+  }
+
+  // 3-Day Tournament Winner Reward Check (Called upon app launch and login)
+  checkForWinnerReward() {
+    if (!window.authManager || !window.authManager.isLoggedIn()) return;
+
+    try {
+      const pendingReward = localStorage.getItem('furu_tournament_winner_reward');
+      if (pendingReward) {
+        const rewardData = JSON.parse(pendingReward);
+        if (rewardData && !rewardData.claimed) {
+          this.showWinnerModal(rewardData.amount || 100);
+        }
+      }
+    } catch (e) {
+      console.warn('Winner reward check skipped:', e);
+    }
+  }
+
+  showWinnerModal(amount = 100) {
+    if (!this.winnerModal) return;
+    this.winnerModal.classList.add('open');
+    this.gameApp.sound.playWin();
+    this.gameApp.confetti.blast();
+  }
+
+  claimWinnerReward() {
+    if (!window.walletManager) return;
+
+    // 1. Credit 100 coins to wallet
+    window.walletManager.coins += 100;
+    window.walletManager.save();
+
+    // 2. Mark reward as claimed in localStorage
+    try {
+      const pendingReward = localStorage.getItem('furu_tournament_winner_reward');
+      if (pendingReward) {
+        const rewardData = JSON.parse(pendingReward);
+        rewardData.claimed = true;
+        rewardData.claimedAt = new Date().toISOString();
+        localStorage.setItem('furu_tournament_winner_reward', JSON.stringify(rewardData));
+      } else {
+        localStorage.setItem('furu_tournament_winner_reward', JSON.stringify({
+          amount: 100,
+          claimed: true,
+          claimedAt: new Date().toISOString()
+        }));
+      }
+    } catch (e) {}
+
+    // 3. Close modal and play sound
+    if (this.winnerModal) this.winnerModal.classList.remove('open');
+    this.gameApp.sound.playClick();
+    this.gameApp.confetti.blast();
+
+    if (window.realAdManager && window.realAdManager.showToast) {
+      window.realAdManager.showToast('🎉 +100 Tournament Winner Coins Added!');
+    }
+  }
+
+  // Sync tournament trophies to Firebase Firestore or REST Backend
+  async syncScoreToDatabase() {
+    // RULE 1: Guest users are NEVER synced or recorded in leaderboard
+    if (!window.authManager || !window.authManager.isLoggedIn()) {
+      console.log('🔒 Guest player: Tournament score will not be synced to global database.');
+      return;
+    }
+
+    const user = window.authManager.currentUser;
+    const trophies = window.walletManager ? window.walletManager.trophies : 0;
+
+    // Real Firebase Firestore integration (if firebase SDK loaded)
+    if (window.db && window.firebase) {
+      try {
+        await window.db.collection('tournament_leaderboard').doc(user.email).set({
+          userId: user.email,
+          displayName: user.name,
+          trophies: trophies,
+          isGuest: false,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        console.log('✅ Leaderboard synced to Cloud Firestore');
+      } catch (err) {
+        console.warn('Firestore sync failed:', err);
+      }
+    }
   }
 
   show() {
@@ -1263,24 +1425,25 @@ class LeaderboardManager {
         if (e.target === this.modal) this.hide();
       });
     }
-  }
 
-  // Cloud Firestore Sync Structure:
-  // Can be connected to Firebase Cloud Firestore for multi-device global sync:
-  /*
-  async syncWithFirebase(userId, userName, trophies) {
-    if (!window.firebase || !window.db) return;
-    try {
-      await db.collection("leaderboard").doc(userId).set({
-        name: userName,
-        trophies: trophies,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-    } catch (e) {
-      console.warn("Leaderboard cloud sync skipped", e);
+    // Guest prompt login button
+    if (this.lbLoginBtn) {
+      this.lbLoginBtn.addEventListener('click', () => {
+        this.gameApp.sound.playClick();
+        this.hide();
+        if (window.authManager) {
+          window.authManager.lockApp(); // Opens login modal
+        }
+      });
+    }
+
+    // Winner reward claim button
+    if (this.claimWinnerBtn) {
+      this.claimWinnerBtn.addEventListener('click', () => {
+        this.claimWinnerReward();
+      });
     }
   }
-  */
 }
 
 // Initialize on DOM load

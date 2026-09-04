@@ -1124,4 +1124,103 @@ body {
   box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0,240,255,0.25);
 }
 
+/* ========================================================
+   GUEST FILTER & 3-DAY TOURNAMENT WINNER STYLES
+   ======================================================== */
+.lb-guest-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(255, 170, 0, 0.12);
+  border: 1px dashed rgba(255, 170, 0, 0.45);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.lb-guest-text {
+  font-size: 11px;
+  color: #ffca3a;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.winner-card {
+  max-width: 380px;
+  text-align: center;
+  border: 2px solid var(--neon-gold);
+  background: radial-gradient(circle at top, rgba(255, 215, 0, 0.18) 0%, rgba(9, 13, 22, 0.98) 70%);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 215, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+  padding: 26px 20px;
+}
+
+.winner-trophy-anim {
+  font-size: 64px;
+  margin-bottom: 6px;
+  animation: winnerTrophyGlow 1.8s infinite alternate ease-in-out;
+  display: inline-block;
+}
+
+@keyframes winnerTrophyGlow {
+  0% { transform: scale(0.95) rotate(-6deg); filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.4)); }
+  100% { transform: scale(1.12) rotate(6deg); filter: drop-shadow(0 0 28px rgba(255, 215, 0, 0.9)); }
+}
+
+.winner-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #ffffff;
+  text-shadow: 0 0 15px var(--neon-gold);
+  margin-bottom: 6px;
+}
+
+.winner-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.winner-sub strong {
+  color: var(--neon-gold);
+}
+
+.winner-reward-box {
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin: 14px 0;
+}
+
+.winner-reward-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #090d16;
+  background: var(--neon-gold);
+  padding: 3px 10px;
+  border-radius: 12px;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.winner-reward-amount {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--neon-gold);
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  margin-bottom: 6px;
+}
+
+.winner-reward-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+
 

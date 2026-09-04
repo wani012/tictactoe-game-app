@@ -25,7 +25,7 @@
   
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=7.0">
+  <link rel="stylesheet" href="./style.css?v=8.0">
 
   <!-- Monetag Real In-App / Rewarded SDK (Defines window.show_11722361) -->
   <script src="https://libtl.com/sdk.js" data-zone="11722361" data-sdk="show_11722361"></script>
@@ -278,8 +278,18 @@
           <strong id="tournament-timer">3d 18h 40m</strong>
         </div>
 
-        <!-- Current User Rank Row -->
-        <div class="my-rank-card">
+        <!-- Guest Warning / Prompt (Shown only to non-logged-in users) -->
+        <div id="lb-guest-prompt" class="lb-guest-prompt" style="display: none;">
+          <div class="lb-guest-text">
+            <span>🔒 <strong>Guest Mode:</strong> Leaderboard par aane aur 3-Day Tournament me 100 Coins jeetne ke liye login karein!</span>
+          </div>
+          <button id="lb-login-btn" class="btn-action btn-primary" style="padding: 6px 14px; font-size: 11px; white-space: nowrap;">
+            Login Now ⚡
+          </button>
+        </div>
+
+        <!-- Current User Rank Row (Visible only for logged-in authenticated users) -->
+        <div id="my-rank-card" class="my-rank-card">
           <div class="rank-badge rank-current">YOU</div>
           <div class="rank-info">
             <span id="lb-user-name" class="rank-name">Player</span>
@@ -294,12 +304,31 @@
         </div>
 
         <div class="leaderboard-rules">
-          <span>Rules: Win = <strong>+25 🏆</strong> | Draw = <strong>+5 🏆</strong> | Loss = <strong>-10 🏆</strong></span>
+          <span>Rules: Win = <strong>+25 🏆</strong> | Draw = <strong>+5 🏆</strong> | Loss = <strong>-10 🏆</strong> | Top #1 = <strong>+100 Coins 🪙</strong></span>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="./game.js?v=7.0"></script>
+  <!-- 3-Day Tournament Winner Reward Pop-up Modal -->
+  <div id="tournament-winner-modal" class="modal-overlay">
+    <div class="modal-card winner-card">
+      <div class="winner-trophy-anim">🏆</div>
+      <h2 class="winner-title">CONGRATULATIONS!</h2>
+      <p class="winner-sub">Aap 3-Day Tournament ke <strong>Rank #1 Champion</strong> rahe!</p>
+      
+      <div class="winner-reward-box">
+        <span class="winner-reward-tag">TOURNAMENT PRIZE</span>
+        <div class="winner-reward-amount">+100 COINS 🪙</div>
+        <p class="winner-reward-note">Aapke wallet me automatically credit kar diye gaye hain.</p>
+      </div>
+
+      <button id="claim-winner-reward-btn" class="btn-action btn-gold-reward" style="width: 100%; margin-top: 16px; font-size: 15px; padding: 12px;">
+        Claim & Continue ⚡
+      </button>
+    </div>
+  </div>
+
+  <script src="./game.js?v=8.0"></script>
 </body>
 </html>

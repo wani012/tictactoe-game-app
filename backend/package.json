@@ -1,0 +1,14 @@
+{
+  "name": "furu-tournament-backend",
+  "version": "1.0.0",
+  "description": "3-Day Tournament Automation and Leaderboard Backend for FURU Zero Kaata Game",
+  "main": "cron-standalone.js",
+  "scripts": {
+    "start": "node cron-standalone.js",
+    "test-run": "node cron-standalone.js --run-now"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "node-cron": "^3.0.3"
+  }
+}

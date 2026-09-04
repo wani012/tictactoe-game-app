@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FURU Tic-Tac-Toe Game Database Schema",
+  "description": "Schema definition for Firebase Firestore / MongoDB NoSQL Database",
+  "collections": {
+    "users": {
+      "description": "User profile, authentication, wallet, and tournament prize status",
+      "documentId": "User UID or sanitized email (e.g., player_abc123 or user@gmail.com)",
+      "fields": {
+        "userId": { "type": "string", "description": "Unique identifier of the player" },
+        "displayName": { "type": "string", "description": "Public name shown in game and leaderboard" },
+        "email": { "type": "string", "description": "User email address" },
+        "isGuest": { "type": "boolean", "default": false, "description": "False for registered players, True for guests. GUEST SCORES NEVER SYNC TO LEADERBOARD" },
+        "coins": { "type": "integer", "default": 100, "description": "In-game virtual coin balance" },
+        "trophies": { "type": "integer", "default": 0, "description": "Current 3-Day tournament score" },
+        "totalWins": { "type": "integer", "default": 0 },
+        "totalMatches": { "type": "integer", "default": 0 },
+        "unclaimedTournamentReward": {
+          "type": "object",
+          "properties": {
+            "amount": { "type": "integer", "example": 100 },
+            "seasonId": { "type": "string", "example": "season_2026_09_03" },
+            "rank": { "type": "integer", "example": 1 },
+            "claimed": { "type": "boolean", "default": false },
+            "awardedAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "createdAt": { "type": "timestamp" },
+        "lastLoginAt": { "type": "timestamp" }
+      }
+    },
+    "tournaments": {
+      "description": "History of all 3-Day Tournament cycles and recorded champions",
+      "documentId": "season_{seasonId} (e.g., season_2026_09_03)",
+      "fields": {
+        "seasonId": { "type": "string" },
+        "startedAt": { "type": "timestamp" },
+        "endedAt": { "type": "timestamp" },
+        "status": { "type": "string", "enum": ["active", "completed"] },
+        "winner": {
+          "type": "object",
+          "properties": {
+            "userId": { "type": "string" },
+            "displayName": { "type": "string" },
+            "winningTrophies": { "type": "integer" },
+            "rewardCoins": { "type": "integer", "default": 100 }
+          }
+        }
+      }
+    },
+    "tournament_leaderboard": {
+      "description": "Active season leaderboard entries (Queried with isGuest == false, ordered by trophies DESC)",
+      "documentId": "userId or email",
+      "fields": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "trophies": { "type": "integer", "description": "Reset to 0 every 3 days by automated cron" },
+        "isGuest": { "type": "boolean", "default": false },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "indexes": [
+        {
+          "fields": [
+            { "fieldPath": "isGuest", "order": "ASCENDING" },
+            { "fieldPath": "trophies", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    }
+  }
+}
