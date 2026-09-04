@@ -25,7 +25,13 @@
   
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=9.0">
+  <link rel="stylesheet" href="./style.css?v=10.0">
+
+  <!-- Firebase SDK v10 (Compat version for Browser/Vanilla JS) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+  <script src="./firebase-config.js"></script>
 
   <!-- Monetag Real In-App / Rewarded SDK (Defines window.show_11722361) -->
   <script src="https://libtl.com/sdk.js" data-zone="11722361" data-sdk="show_11722361"></script>
@@ -37,7 +43,7 @@
     if ('caches' in window) {
       caches.keys().then(function(names) {
         names.forEach(function(n) {
-          if (n !== 'furu-v12-monetization-boost') caches.delete(n);
+          if (n !== 'furu-v13-firebase-sync') caches.delete(n);
         });
       });
     }
@@ -217,7 +223,22 @@
     <div class="login-card">
       <img src="./icon.svg" alt="FURU Logo" class="login-logo">
       <h2 class="login-title">FURU ⚡ LOGIN</h2>
-      <p class="login-desc">Khelne ke liye apna Email & Name daalein</p>
+      <p class="login-desc">Khelne ke liye Google ya Username se login karein</p>
+
+      <!-- 1-Click Google Sign-In -->
+      <button type="button" id="google-login-btn" class="btn-google-login">
+        <svg class="google-icon-svg" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.36 7.34 24 12 24z"/>
+          <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.97 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>
+          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.27 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+        </svg>
+        <span>Sign in with Google</span>
+      </button>
+
+      <div class="login-divider">
+        <span>OR CONTINUE WITH USERNAME</span>
+      </div>
 
       <form id="login-form" class="login-form" onsubmit="return false;">
         <div class="input-group">
@@ -332,6 +353,69 @@
     </div>
   </div>
 
-  <script src="./game.js?v=9.0"></script>
+  <script src="./game.js?v=10.0"></script>
+<!-- Player Name Modal -->
+<div id="playerModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); display:flex; justify-content:center; align-items:center; z-index:9999;">
+  <div style="background:#1e1e2f; padding:25px 30px; border-radius:12px; text-align:center; color:#fff; max-width:320px; width:90%; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+    <h3 style="margin-bottom:15px; font-size:20px;">Enter Player Name</h3>
+    <input type="text" id="playerNameInput" placeholder="Apna Naam Likhein..." style="width:100%; padding:10px; border-radius:6px; border:1px solid #444; background:#2a2a3e; color:#fff; margin-bottom:15px; box-sizing:border-box; outline:none; font-size:15px;">
+    <button id="startGameBtn" style="width:100%; padding:10px; background:#4CAF50; color:#fff; font-weight:bold; border:none; border-radius:6px; cursor:pointer; font-size:16px;">Play Game</button>
+  </div>
+</div>
+
+<!-- Firebase Modular SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAtXBRPQXCYN-OF4x_ZKn6W1wO0KyHn8Y",
+    authDomain: "furkan-farooq.firebaseapp.com",
+    projectId: "furkan-farooq",
+    storageBucket: "furkan-farooq.firebasestorage.app",
+    messagingSenderId: "708348430058",
+    appId: "1:708348430058:web:7eb3db5092b2ea1b9e7993",
+    measurementId: "G-Q01BGMRE3E"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const modal = document.getElementById("playerModal");
+  const input = document.getElementById("playerNameInput");
+  const btn = document.getElementById("startGameBtn");
+
+  let playerId = localStorage.getItem("playerId");
+  if (!playerId) {
+    playerId = "player_" + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem("playerId", playerId);
+  }
+
+  const savedName = localStorage.getItem("playerName");
+  if (savedName) {
+    modal.style.display = "none";
+    trackPlayer(savedName);
+  }
+
+  btn.addEventListener("click", () => {
+    const name = input.value.trim();
+    if (!name) return alert("Kripya apna naam enter karein!");
+    localStorage.setItem("playerName", name);
+    modal.style.display = "none";
+    trackPlayer(name);
+  });
+
+  async function trackPlayer(name) {
+    try {
+      await setDoc(doc(db, "users", playerId), {
+        name: name,
+        playerId: playerId,
+        lastActive: serverTimestamp()
+      }, { merge: true });
+    } catch (err) {
+      console.error("Firebase Error:", err);
+    }
+  }
+</script>
 </body>
 </html>
