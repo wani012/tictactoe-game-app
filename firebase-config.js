@@ -11,10 +11,11 @@
  */
 
 window.firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAtXBRPOXEcYN-OF4x_ZKn6WlwO0KyHn8Y",
+  authDomain: "furkan-farooq.firebaseapp.com",
+  projectId: "furkan-farooq",
+  storageBucket: "furkan-farooq.firebasestorage.app",
+  messagingSenderId: "708348430058",
+  appId: "1:708348430058:web:7eb3db5092b2ea1b9e7993",
+  measurementId: "G-Q01BGMRE3E"
 };
