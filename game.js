@@ -171,6 +171,9 @@ class TicTacToeGame {
     this.sound = new SoundEngine();
     this.confetti = new ConfettiEngine('confetti-canvas');
     this.isTournamentMatch = false;
+    this.isPracticeMode = false;
+    this.lastTournamentStartingTurn = 'X';
+    this.dailyTournamentCount = 1;
 
     this.loadStorage();
     this.cacheDom();
@@ -345,6 +348,10 @@ class TicTacToeGame {
 
   setTournamentMatch(active, dailyCount = 1) {
     this.isTournamentMatch = !!active;
+    this.dailyTournamentCount = dailyCount;
+    if (active) {
+      this.lastTournamentStartingTurn = 'X';
+    }
     const boardWrapper = document.querySelector('.board-wrapper');
     if (this.tournamentActivePill) {
       this.tournamentActivePill.style.display = active ? 'flex' : 'none';
@@ -437,14 +444,16 @@ class TicTacToeGame {
       return;
     }
 
-    // Deduct entry fee on first move of the match
+    // Deduct entry fee on first move of the match (Casual match only; Tournament stake is handled on definitive loss, Practice is free)
     if (!this.roundStarted) {
-      if (window.walletManager && !window.walletManager.canAffordMatch()) {
-        window.walletManager.showOutOfCoinsModal();
-        return;
-      }
-      if (window.walletManager) {
-        window.walletManager.deductEntryFee();
+      if (!this.isTournamentMatch && !this.isPracticeMode) {
+        if (window.walletManager && !window.walletManager.canAffordMatch()) {
+          window.walletManager.showOutOfCoinsModal();
+          return;
+        }
+        if (window.walletManager) {
+          window.walletManager.deductEntryFee();
+        }
       }
       this.roundStarted = true;
     }
@@ -619,25 +628,40 @@ class TicTacToeGame {
     const wasTournamentMatch = this.isTournamentMatch;
 
     if (result === 'draw') {
-      this.scores.draw++;
       this.sound.playDraw();
       this.vibrate([80, 50, 80]);
 
       if (wasTournamentMatch) {
-        this.statusText.textContent = "🏆 Tournament Draw! (+5 Pts +25 🪙 Refund)";
-        if (window.walletManager) {
-          window.walletManager.coins += 25;
-          window.walletManager.save();
+        // 🏆 Tournament Tie / Arena Draw Logic:
+        // 1. Do NOT deduct any coins from the player.
+        // 2. Do NOT advance the tournament match count (keep the progress unchanged, e.g. 1/5).
+        // 3. Do NOT register it as a loss or exit the arena (tournament remains active).
+        // 4. Instead, trigger an instant replay:
+        //    - Display a brief message: "Match Tied! Replaying round..."
+        //    - Wait 1 to 1.5 seconds, then clear/reset the board so the round restarts automatically.
+        //    - Alternate the starting turn for fairness.
+        this.statusText.textContent = "Match Tied! Replaying round...";
+        if (this.statusDot) this.statusDot.style.display = 'none';
+
+        if (window.realAdManager && window.realAdManager.showToast) {
+          window.realAdManager.showToast("🤝 Match Tied! Replaying round...");
         }
-        if (window.leaderboardManager) {
-          window.leaderboardManager.recordTournamentScore(5, false);
-        }
-        this.setTournamentMatch(false);
-      } else {
-        this.statusText.textContent = "It's a Draw! (+5 🏆)";
-        if (window.walletManager) window.walletManager.recordDraw();
+
+        // Alternate the starting turn for fairness
+        const nextStartTurn = (this.lastTournamentStartingTurn === 'X') ? 'O' : 'X';
+        this.lastTournamentStartingTurn = nextStartTurn;
+
+        setTimeout(() => {
+          this.replayTournamentRound(nextStartTurn);
+        }, 1200);
+
+        // Keep tournament state intact; do not count as completed match or show interstitial ads
+        return;
       }
 
+      this.scores.draw++;
+      this.statusText.textContent = "It's a Draw! (+5 🏆)";
+      if (window.walletManager) window.walletManager.recordDraw();
       if (window.authManager) window.authManager.syncUserStatsToFirestore();
     } else {
       if (result === 'X') {
@@ -653,13 +677,19 @@ class TicTacToeGame {
         this.vibrate([100, 50, 100, 50, 150]);
 
         if (wasTournamentMatch) {
-          this.statusText.textContent = '🏆 Tournament Match Won! (+25 Pts +70 🪙)';
+          this.statusText.textContent = '🏆 Tournament Match Won! (+35 🪙 +25 Pts)';
           if (window.walletManager) {
-            window.walletManager.coins += 70;
+            window.walletManager.coins += 35;
             window.walletManager.save();
           }
           if (window.leaderboardManager) {
             window.leaderboardManager.recordTournamentScore(25, true);
+          }
+          if (window.authManager) {
+            window.authManager.recordDailyTournamentPlay();
+          }
+          if (window.realAdManager && window.realAdManager.showToast) {
+            window.realAdManager.showToast('🏆 Tournament Won! +35 Coins & +25 Pts');
           }
           this.setTournamentMatch(false);
         } else {
@@ -694,9 +724,20 @@ class TicTacToeGame {
         this.updateStreakUI();
 
         if (wasTournamentMatch) {
-          this.statusText.textContent = '💀 Tournament Match Lost! (-5 Pts)';
+          // 5. Coins must only be deducted on a definitive Loss
+          this.statusText.textContent = '💀 Tournament Match Lost! (-50 🪙 -5 Pts)';
+          if (window.walletManager) {
+            window.walletManager.coins = Math.max(0, window.walletManager.coins - 50);
+            window.walletManager.save();
+          }
           if (window.leaderboardManager) {
             window.leaderboardManager.recordTournamentScore(-5, false);
+          }
+          if (window.authManager) {
+            window.authManager.recordDailyTournamentPlay();
+          }
+          if (window.realAdManager && window.realAdManager.showToast) {
+            window.realAdManager.showToast('💀 Tournament Match Lost! 50 Coins Deducted');
           }
           this.setTournamentMatch(false);
         } else {
@@ -730,6 +771,48 @@ class TicTacToeGame {
           }
         }, 1200);
       }
+    }
+  }
+
+  replayTournamentRound(startingTurn = 'X') {
+    this.board = Array(9).fill('');
+    this.isGameOver = false;
+    this.isAiThinking = false;
+    this.roundStarted = false;
+    this.currentTurn = startingTurn;
+    this.strikeSvg.innerHTML = '';
+
+    if (this.doubleRewardBtn) {
+      this.doubleRewardBtn.style.display = 'none';
+    }
+
+    this.cells.forEach(c => {
+      c.className = 'cell';
+      c.innerHTML = '';
+    });
+
+    this.updateStatus();
+    this.updateActiveCard();
+
+    if (this.statusDot) {
+      this.statusDot.style.display = 'inline-block';
+    }
+
+    if (this.tournamentActivePill) {
+      this.tournamentActivePill.style.display = 'flex';
+    }
+    if (this.tournamentMatchCountBadge && this.dailyTournamentCount) {
+      this.tournamentMatchCountBadge.textContent = `(${this.dailyTournamentCount}/5)`;
+    }
+
+    const boardWrapper = document.querySelector('.board-wrapper');
+    if (boardWrapper) {
+      boardWrapper.classList.add('tournament-board-glow');
+    }
+
+    // If AI is scheduled to start this replay round, trigger AI turn!
+    if (this.mode === 'ai' && this.currentTurn === this.aiSymbol) {
+      this.triggerAiTurn();
     }
   }
 
@@ -799,7 +882,7 @@ class TicTacToeGame {
   }
 
   resetGame() {
-    if (window.walletManager && !window.walletManager.canAffordMatch()) {
+    if (!this.isTournamentMatch && !this.isPracticeMode && window.walletManager && !window.walletManager.canAffordMatch()) {
       window.walletManager.showOutOfCoinsModal();
       return;
     }
@@ -822,6 +905,20 @@ class TicTacToeGame {
 
     this.updateStatus();
     this.updateActiveCard();
+
+    // Preserve tournament UI state if currently in a tournament match
+    if (this.isTournamentMatch) {
+      if (this.tournamentActivePill) {
+        this.tournamentActivePill.style.display = 'flex';
+      }
+      if (this.tournamentMatchCountBadge && this.dailyTournamentCount) {
+        this.tournamentMatchCountBadge.textContent = `(${this.dailyTournamentCount}/5)`;
+      }
+      const boardWrapper = document.querySelector('.board-wrapper');
+      if (boardWrapper) {
+        boardWrapper.classList.add('tournament-board-glow');
+      }
+    }
 
     // If AI is playing as 'X' (user picked 'O'), AI goes first!
     if (this.mode === 'ai' && this.userSymbol === 'O') {
@@ -1276,28 +1373,22 @@ class AuthManager {
     const currentCoins = window.walletManager ? window.walletManager.coins : 0;
     if (currentCoins < 50) {
       if (errorEl) {
-        errorEl.textContent = "⚠️ Insufficient coins! Entry fee is 50 🪙. Watch an ad to earn coins or play free practice mode.";
+        errorEl.textContent = "⚠️ Insufficient coins! 50 🪙 required to enter Official Tournament.";
         errorEl.style.display = 'block';
       }
       return;
     }
 
-    // Deduct 50 coins entry fee
-    window.walletManager.coins -= 50;
-    window.walletManager.save();
+    this.gameApp.isPracticeMode = false;
+    const currentMatchNum = playsToday + 1;
+
     if (window.realAdManager && window.realAdManager.showToast) {
-      window.realAdManager.showToast('🪙 50 Coins Entry Fee Deducted');
+      window.realAdManager.showToast(`🏆 Tournament Match ${currentMatchNum}/5 Started! (Stake: 50 🪙)`);
     }
-
-    // Record match attempt
-    const newCount = await this.recordDailyTournamentPlay();
-
-    // Sync to Firestore
-    this.syncUserStatsToFirestore();
 
     // Close modal and activate tournament mode in game
     this.hideArenaModal();
-    this.gameApp.setTournamentMatch(true, newCount);
+    this.gameApp.setTournamentMatch(true, currentMatchNum);
     this.gameApp.resetGame();
 
     if (window.leaderboardManager) {
@@ -1308,6 +1399,7 @@ class AuthManager {
   handlePracticeEntry() {
     this.gameApp.sound.playClick();
     this.hideArenaModal();
+    this.gameApp.isPracticeMode = true;
     this.gameApp.setTournamentMatch(false);
     this.gameApp.resetGame();
     if (window.realAdManager && window.realAdManager.showToast) {
