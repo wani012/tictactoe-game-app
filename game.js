@@ -660,7 +660,7 @@ class TicTacToeGame {
       }
 
       this.scores.draw++;
-      this.statusText.textContent = "It's a Draw! (+5 🏆)";
+      this.statusText.textContent = "It's a Draw! (+5 🪙 | +5 🏆)";
       if (window.walletManager) window.walletManager.recordDraw();
       if (window.authManager) window.authManager.syncUserStatsToFirestore();
     } else {
@@ -1507,6 +1507,7 @@ class WalletManager {
 
     this.MATCH_FEE = 20;     // 20 coins entry fee
     this.WIN_REWARD = 35;    // 35 coins reward for winning (+15 net gain)
+    this.COIN_DRAW = 5;      // +5 Coins on draw
     this.TROPHY_WIN = 25;    // +25 Trophies on win
     this.TROPHY_DRAW = 5;    // +5 Trophies on draw
     this.TROPHY_LOSS = 10;   // -10 Trophies on loss (min 0)
@@ -1573,6 +1574,7 @@ class WalletManager {
   }
 
   recordDraw() {
+    this.coins += this.COIN_DRAW;
     this.trophies += this.TROPHY_DRAW;
     this.save();
     if (window.leaderboardManager) {
