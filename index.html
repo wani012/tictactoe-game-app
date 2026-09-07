@@ -43,7 +43,7 @@
     if ('caches' in window) {
       caches.keys().then(function(names) {
         names.forEach(function(n) {
-          if (n !== 'furu-v15.1-pro-cyberpunk') caches.delete(n);
+          if (n !== 'furu-v15.2-pro-cyberpunk') caches.delete(n);
         });
       });
     }
@@ -137,10 +137,15 @@
         <span id="status-dot" class="turn-dot x"></span>
         <span id="status-text">Your Turn (X)</span>
       </div>
-      <div class="economy-bar">
+      <div id="economy-bar" class="economy-bar">
         <span class="economy-chip">Match: <strong class="gold-text">-20 🪙</strong></span>
         <span class="economy-chip win-reward">Win: <strong class="green-text">+35 🪙</strong></span>
         <span class="economy-chip trophy-reward">Trophy: <strong class="cyan-text">+25 🏆</strong></span>
+      </div>
+      <div id="practice-bar" class="economy-bar" style="display: none;">
+        <span class="economy-chip practice-chip" style="background: rgba(0, 240, 255, 0.08); border: 1px solid rgba(0, 240, 255, 0.35); color: var(--neon-cyan); width: 100%; justify-content: center; font-size: 11px; padding: 6px 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+          🎮 Free Practice Mode (No Coins / Trophies)
+        </span>
       </div>
     </div>
 
@@ -450,6 +455,6 @@
     </div>
   </div>
 
-  <script src="./game.js?v=15.1"></script>
+  <script src="./game.js?v=15.2"></script>
 </body>
 </html>

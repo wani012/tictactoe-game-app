@@ -206,6 +206,8 @@ class TicTacToeGame {
     this.tournamentActivePill = document.getElementById('tournament-active-pill');
     this.tournamentMatchCountBadge = document.getElementById('tournament-match-count-badge') || document.getElementById('tournament-match-count');
     this.arenaBtn = document.getElementById('arena-btn');
+    this.economyBar = document.getElementById('economy-bar') || document.querySelector('.economy-bar');
+    this.practiceBar = document.getElementById('practice-bar');
 
     this.streak = 0;
     this.streakPill = document.getElementById('streak-pill');
@@ -350,6 +352,7 @@ class TicTacToeGame {
     this.isTournamentMatch = !!active;
     this.dailyTournamentCount = dailyCount;
     if (active) {
+      this.isPracticeMode = false;
       this.lastTournamentStartingTurn = 'X';
     }
     const boardWrapper = document.querySelector('.board-wrapper');
@@ -380,6 +383,27 @@ class TicTacToeGame {
       }
       if (boardWrapper) {
         boardWrapper.classList.remove('tournament-board-glow');
+      }
+    }
+    this.updatePracticeUI();
+  }
+
+  setPracticeMode(active) {
+    this.isPracticeMode = !!active;
+    if (active) {
+      this.setTournamentMatch(false);
+    }
+    this.updatePracticeUI();
+  }
+
+  updatePracticeUI() {
+    if (this.economyBar && this.practiceBar) {
+      if (this.isPracticeMode) {
+        this.practiceBar.style.display = 'flex';
+        this.economyBar.style.display = 'none';
+      } else {
+        this.practiceBar.style.display = 'none';
+        this.economyBar.style.display = 'flex';
       }
     }
   }
@@ -660,9 +684,15 @@ class TicTacToeGame {
       }
 
       this.scores.draw++;
-      this.statusText.textContent = "It's a Draw! (+5 🪙 | +5 🏆)";
-      if (window.walletManager) window.walletManager.recordDraw();
-      if (window.authManager) window.authManager.syncUserStatsToFirestore();
+
+      if (this.isPracticeMode) {
+        // 🎮 Free Practice Mode: No coins, no trophies, no Firestore sync
+        this.statusText.textContent = "It's a Draw!";
+      } else {
+        this.statusText.textContent = "It's a Draw! (+5 🪙 | +5 🏆)";
+        if (window.walletManager) window.walletManager.recordDraw();
+        if (window.authManager) window.authManager.syncUserStatsToFirestore();
+      }
     } else {
       if (result === 'X') {
         this.scores.x++;
@@ -692,24 +722,30 @@ class TicTacToeGame {
             window.realAdManager.showToast('🏆 Tournament Won! +35 Coins & +25 Pts');
           }
           this.setTournamentMatch(false);
+        } else if (this.isPracticeMode) {
+          // 🎮 Free Practice Mode: Pure gameplay, no coin or trophy rewards
+          this.statusText.textContent = this.mode === 'ai' ? '🎉 You Won!' : `🎉 Player ${result} Won!`;
+          if (this.doubleRewardBtn) {
+            this.doubleRewardBtn.style.display = 'none';
+          }
         } else {
           this.statusText.textContent = this.mode === 'ai' ? '🎉 You Won! (+35 🪙 +25 🏆)' : `🎉 Player ${result} Won! (+35 🪙)`;
           if (window.walletManager) window.walletManager.rewardWin();
-        }
 
-        // ☁️ Sync Match Win to Firestore Live Tracking
-        if (window.authManager) {
-          const winInc = (typeof firebase !== 'undefined' && firebase.firestore)
-            ? firebase.firestore.FieldValue.increment(1)
-            : 1;
-          window.authManager.syncUserStatsToFirestore({ matchesWon: winInc });
-        }
+          // ☁️ Sync Match Win to Firestore Live Tracking
+          if (window.authManager) {
+            const winInc = (typeof firebase !== 'undefined' && firebase.firestore)
+              ? firebase.firestore.FieldValue.increment(1)
+              : 1;
+            window.authManager.syncUserStatsToFirestore({ matchesWon: winInc });
+          }
 
-        // 💰 Monetization Boost: Show 2X Double Win Reward button
-        if (this.doubleRewardBtn) {
-          this.doubleRewardBtn.style.display = 'flex';
-          this.doubleRewardBtn.disabled = false;
-          this.doubleRewardBtn.innerHTML = '<span>⚡</span> Claim 2X Coins (+35 🪙) 🎬';
+          // 💰 Monetization Boost: Show 2X Double Win Reward button
+          if (this.doubleRewardBtn) {
+            this.doubleRewardBtn.style.display = 'flex';
+            this.doubleRewardBtn.disabled = false;
+            this.doubleRewardBtn.innerHTML = '<span>⚡</span> Claim 2X Coins (+35 🪙) 🎬';
+          }
         }
 
         // Update win streak
@@ -740,14 +776,17 @@ class TicTacToeGame {
             window.realAdManager.showToast('💀 Tournament Match Lost! 50 Coins Deducted');
           }
           this.setTournamentMatch(false);
+        } else if (this.isPracticeMode) {
+          // 🎮 Free Practice Mode: Pure gameplay, no trophy penalty
+          this.statusText.textContent = '🤖 Bot Won!';
         } else {
           this.statusText.textContent = '🤖 Bot Won! (-10 🏆)';
           if (window.walletManager) window.walletManager.recordLoss();
-        }
 
-        // ☁️ Sync Match Loss to Firestore Live Tracking
-        if (window.authManager) {
-          window.authManager.syncUserStatsToFirestore();
+          // ☁️ Sync Match Loss to Firestore Live Tracking
+          if (window.authManager) {
+            window.authManager.syncUserStatsToFirestore();
+          }
         }
       }
 
@@ -759,7 +798,7 @@ class TicTacToeGame {
     this.updateScoreboard();
     this.statusDot.style.display = 'none';
 
-    if (window.walletManager) {
+    if (window.walletManager && !this.isPracticeMode) {
       window.walletManager.matchesCompleted++;
       window.walletManager.save();
 
@@ -920,6 +959,8 @@ class TicTacToeGame {
       }
     }
 
+    this.updatePracticeUI();
+
     // If AI is playing as 'X' (user picked 'O'), AI goes first!
     if (this.mode === 'ai' && this.userSymbol === 'O') {
       this.triggerAiTurn();
@@ -930,6 +971,7 @@ class TicTacToeGame {
     this.updateScoreboard();
     this.updateStatus();
     this.updateActiveCard();
+    this.updatePracticeUI();
     this.soundToggleBtn.textContent = this.sound.enabled ? '🔊' : '🔇';
 
     this.symbolChips.forEach(chip => {
@@ -1388,6 +1430,7 @@ class AuthManager {
 
     // Close modal and activate tournament mode in game
     this.hideArenaModal();
+    this.gameApp.setPracticeMode(false);
     this.gameApp.setTournamentMatch(true, currentMatchNum);
     this.gameApp.resetGame();
 
@@ -1399,11 +1442,10 @@ class AuthManager {
   handlePracticeEntry() {
     this.gameApp.sound.playClick();
     this.hideArenaModal();
-    this.gameApp.isPracticeMode = true;
-    this.gameApp.setTournamentMatch(false);
+    this.gameApp.setPracticeMode(true);
     this.gameApp.resetGame();
     if (window.realAdManager && window.realAdManager.showToast) {
-      window.realAdManager.showToast('🎮 Practice Mode Active. No coins deducted!');
+      window.realAdManager.showToast('🎮 Free Practice Mode (No Coins / Trophies)');
     }
   }
 
@@ -1468,6 +1510,7 @@ class AuthManager {
     if (this.nameInput) this.nameInput.value = '';
     if (this.emailInput) this.emailInput.value = '';
     this.lockApp();
+    this.gameApp.setPracticeMode(false);
     this.gameApp.setTournamentMatch(false);
     this.gameApp.resetGame();
 
