@@ -201,8 +201,12 @@ class TicTacToeGame {
     this.symbolChips = document.querySelectorAll('.symbol-chip');
     this.doubleRewardBtn = document.getElementById('double-reward-btn');
     this.tournamentActivePill = document.getElementById('tournament-active-pill');
-    this.tournamentMatchCountBadge = document.getElementById('tournament-match-count');
+    this.tournamentMatchCountBadge = document.getElementById('tournament-match-count-badge') || document.getElementById('tournament-match-count');
     this.arenaBtn = document.getElementById('arena-btn');
+
+    this.streak = 0;
+    this.streakPill = document.getElementById('streak-pill');
+    this.streakCountEl = document.getElementById('streak-count');
   }
 
   loadStorage() {
@@ -218,8 +222,22 @@ class TicTacToeGame {
         this.userSymbol = savedSymbol;
         this.aiSymbol = savedSymbol === 'X' ? 'O' : 'X';
       }
+      const savedStreak = localStorage.getItem('zk_streak');
+      if (savedStreak) this.streak = parseInt(savedStreak, 10) || 0;
+      this.updateStreakUI();
     } catch (e) {
       console.warn('Storage read error', e);
+    }
+  }
+
+  updateStreakUI() {
+    if (this.streakPill && this.streakCountEl) {
+      if (this.streak >= 2) {
+        this.streakPill.style.display = 'flex';
+        this.streakCountEl.textContent = this.streak;
+      } else {
+        this.streakPill.style.display = 'none';
+      }
     }
   }
 
@@ -229,6 +247,7 @@ class TicTacToeGame {
       localStorage.setItem('zk_sound', this.sound.enabled);
       localStorage.setItem('zk_diff', this.difficulty);
       localStorage.setItem('zk_symbol', this.userSymbol);
+      localStorage.setItem('zk_streak', this.streak);
     } catch (e) {
       console.warn('Storage save error', e);
     }
@@ -294,6 +313,8 @@ class TicTacToeGame {
     this.resetScoresBtn.addEventListener('click', () => {
       this.sound.playClick();
       this.scores = { x: 0, o: 0, draw: 0, streak: 0 };
+      this.streak = 0;
+      this.updateStreakUI();
       this.saveStorage();
       this.updateScoreboard();
       this.settingsModal.classList.remove('open');
@@ -324,11 +345,35 @@ class TicTacToeGame {
 
   setTournamentMatch(active, dailyCount = 1) {
     this.isTournamentMatch = !!active;
+    const boardWrapper = document.querySelector('.board-wrapper');
     if (this.tournamentActivePill) {
       this.tournamentActivePill.style.display = active ? 'flex' : 'none';
     }
     if (this.tournamentMatchCountBadge) {
-      this.tournamentMatchCountBadge.textContent = `${dailyCount}/5`;
+      this.tournamentMatchCountBadge.textContent = `(${dailyCount}/5)`;
+    }
+
+    const easyChip = document.querySelector('.diff-chip[data-diff="easy"]');
+    if (active) {
+      // In Tournament Mode: Restrict difficulty to Medium or Impossible ONLY!
+      if (easyChip) {
+        easyChip.style.display = 'none';
+        easyChip.disabled = true;
+      }
+      if (this.difficulty === 'easy') {
+        this.setDifficulty(Math.random() < 0.6 ? 'medium' : 'impossible');
+      }
+      if (boardWrapper) {
+        boardWrapper.classList.add('tournament-board-glow');
+      }
+    } else {
+      if (easyChip) {
+        easyChip.style.display = '';
+        easyChip.disabled = false;
+      }
+      if (boardWrapper) {
+        boardWrapper.classList.remove('tournament-board-glow');
+      }
     }
   }
 
@@ -368,6 +413,9 @@ class TicTacToeGame {
   }
 
   setDifficulty(diff) {
+    if (this.isTournamentMatch && diff === 'easy') {
+      diff = 'medium';
+    }
     this.difficulty = diff;
     this.diffChips.forEach(c => c.classList.toggle('active', c.getAttribute('data-diff') === diff));
     this.saveStorage();
@@ -451,7 +499,7 @@ class TicTacToeGame {
     const emptyIndices = this.getAvailableMoves(this.board);
     if (emptyIndices.length === 0) return -1;
 
-    if (this.difficulty === 'easy') {
+    if (this.difficulty === 'easy' && !this.isTournamentMatch) {
       // Pure random
       return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
     }
@@ -633,9 +681,17 @@ class TicTacToeGame {
           this.doubleRewardBtn.disabled = false;
           this.doubleRewardBtn.innerHTML = '<span>⚡</span> Claim 2X Coins (+35 🪙) 🎬';
         }
+
+        // Update win streak
+        this.streak = (this.streak || 0) + 1;
+        this.updateStreakUI();
       } else {
         this.sound.playLose();
         this.vibrate([150, 80, 200]);
+
+        // Reset win streak on loss
+        this.streak = 0;
+        this.updateStreakUI();
 
         if (wasTournamentMatch) {
           this.statusText.textContent = '💀 Tournament Match Lost! (-5 Pts)';

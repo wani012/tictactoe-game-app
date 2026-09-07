@@ -1,9 +1,9 @@
-const CACHE_NAME = 'furu-v13-firebase-sync';
+const CACHE_NAME = 'furu-v14-pro-cyberpunk';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=10.0',
-  './game.js?v=10.0',
+  './style.css?v=14.0',
+  './game.js?v=14.0',
   './firebase-config.js',
   './manifest.json',
   './icon.svg'

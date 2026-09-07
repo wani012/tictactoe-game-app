@@ -25,7 +25,7 @@
   
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=10.0">
+  <link rel="stylesheet" href="./style.css?v=14.0">
 
   <!-- Firebase SDK v10 (Compat version for Browser/Vanilla JS) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -43,7 +43,7 @@
     if ('caches' in window) {
       caches.keys().then(function(names) {
         names.forEach(function(n) {
-          if (n !== 'furu-v13-firebase-sync') caches.delete(n);
+          if (n !== 'furu-v14-pro-cyberpunk') caches.delete(n);
         });
       });
     }
@@ -67,6 +67,10 @@
       </div>
       
       <div class="header-actions">
+        <div id="streak-pill" class="stat-pill streak-pill" title="Current Win Streak" style="display: none;">
+          <span class="flame-icon">🔥</span>
+          <span id="streak-count">0</span>
+        </div>
         <div id="wallet-btn" class="stat-pill coin-pill" title="Coins: Click to get Free Coins!">
           <span class="coin-spin">🪙</span>
           <span id="coin-balance">100</span>
@@ -446,6 +450,6 @@
     </div>
   </div>
 
-  <script src="./game.js?v=10.0"></script>
+  <script src="./game.js?v=14.0"></script>
 </body>
 </html>

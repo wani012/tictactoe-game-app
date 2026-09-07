@@ -886,6 +886,46 @@ body {
   box-shadow: 0 0 14px var(--neon-cyan-glow);
 }
 
+.streak-pill {
+  background: rgba(255, 107, 0, 0.15);
+  border: 1px solid rgba(255, 107, 0, 0.45);
+  color: #ff9d42;
+  box-shadow: 0 0 10px rgba(255, 107, 0, 0.25);
+  animation: streakFlamePulse 1.8s infinite alternate ease-in-out;
+}
+
+.streak-pill:hover {
+  background: rgba(255, 107, 0, 0.25);
+  box-shadow: 0 0 16px rgba(255, 107, 0, 0.5);
+}
+
+.flame-icon {
+  display: inline-block;
+  animation: flameFlicker 1.2s infinite ease-in-out alternate;
+}
+
+@keyframes flameFlicker {
+  0% { transform: scale(1) rotate(-3deg); filter: drop-shadow(0 0 4px #ff6b00); }
+  100% { transform: scale(1.15) rotate(4deg); filter: drop-shadow(0 0 10px #ff3b00); }
+}
+
+@keyframes streakFlamePulse {
+  0% { box-shadow: 0 0 8px rgba(255, 107, 0, 0.25); }
+  100% { box-shadow: 0 0 16px rgba(255, 107, 0, 0.55); border-color: #ff8533; }
+}
+
+.board-wrapper.tournament-board-glow {
+  border: 2px solid var(--neon-gold) !important;
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.45), inset 0 0 18px rgba(255, 215, 0, 0.2) !important;
+  border-radius: var(--radius-lg);
+  animation: tournamentBorderSurge 2s infinite alternate ease-in-out;
+}
+
+@keyframes tournamentBorderSurge {
+  0% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.3), inset 0 0 10px rgba(255, 215, 0, 0.15); }
+  100% { box-shadow: 0 0 35px rgba(255, 215, 0, 0.6), inset 0 0 22px rgba(255, 215, 0, 0.3); border-color: #ffe033; }
+}
+
 /* Economy Bar */
 .economy-bar {
   display: flex;
