@@ -689,7 +689,7 @@ class TicTacToeGame {
         // 🎮 Free Practice Mode: No coins, no trophies, no Firestore sync
         this.statusText.textContent = "It's a Draw!";
       } else {
-        this.statusText.textContent = "It's a Draw! (+5 🪙 | +5 🏆)";
+        this.statusText.textContent = "It's a Draw! (+5 🪙)";
         if (window.walletManager) window.walletManager.recordDraw();
         if (window.authManager) window.authManager.syncUserStatsToFirestore();
       }
@@ -707,7 +707,7 @@ class TicTacToeGame {
         this.vibrate([100, 50, 100, 50, 150]);
 
         if (wasTournamentMatch) {
-          this.statusText.textContent = '🏆 Tournament Match Won! (+35 🪙 +25 Pts)';
+          this.statusText.textContent = '🏆 Tournament Match Won! (+35 🪙 +25 🏆)';
           if (window.walletManager) {
             window.walletManager.coins += 35;
             window.walletManager.save();
@@ -719,7 +719,7 @@ class TicTacToeGame {
             window.authManager.recordDailyTournamentPlay();
           }
           if (window.realAdManager && window.realAdManager.showToast) {
-            window.realAdManager.showToast('🏆 Tournament Won! +35 Coins & +25 Pts');
+            window.realAdManager.showToast('🏆 Tournament Won! +35 Coins & +25 🏆');
           }
           this.setTournamentMatch(false);
         } else if (this.isPracticeMode) {
@@ -729,7 +729,8 @@ class TicTacToeGame {
             this.doubleRewardBtn.style.display = 'none';
           }
         } else {
-          this.statusText.textContent = this.mode === 'ai' ? '🎉 You Won! (+35 🪙 +25 🏆)' : `🎉 Player ${result} Won! (+35 🪙)`;
+          // Casual / Home Screen Match: Coins only (+35 🪙), no trophies
+          this.statusText.textContent = this.mode === 'ai' ? '🎉 You Won! (+35 🪙)' : `🎉 Player ${result} Won! (+35 🪙)`;
           if (window.walletManager) window.walletManager.rewardWin();
 
           // ☁️ Sync Match Win to Firestore Live Tracking
@@ -761,7 +762,7 @@ class TicTacToeGame {
 
         if (wasTournamentMatch) {
           // 5. Coins must only be deducted on a definitive Loss
-          this.statusText.textContent = '💀 Tournament Match Lost! (-50 🪙 -5 Pts)';
+          this.statusText.textContent = '💀 Tournament Match Lost! (-50 🪙 -5 🏆)';
           if (window.walletManager) {
             window.walletManager.coins = Math.max(0, window.walletManager.coins - 50);
             window.walletManager.save();
@@ -773,14 +774,15 @@ class TicTacToeGame {
             window.authManager.recordDailyTournamentPlay();
           }
           if (window.realAdManager && window.realAdManager.showToast) {
-            window.realAdManager.showToast('💀 Tournament Match Lost! 50 Coins Deducted');
+            window.realAdManager.showToast('💀 Tournament Match Lost! 50 Coins Deducted (-5 🏆)');
           }
           this.setTournamentMatch(false);
         } else if (this.isPracticeMode) {
           // 🎮 Free Practice Mode: Pure gameplay, no trophy penalty
           this.statusText.textContent = '🤖 Bot Won!';
         } else {
-          this.statusText.textContent = '🤖 Bot Won! (-10 🏆)';
+          // Casual / Home Screen Match: Coins already deducted on start (-20), no trophies deducted
+          this.statusText.textContent = '🤖 Bot Won!';
           if (window.walletManager) window.walletManager.recordLoss();
 
           // ☁️ Sync Match Loss to Firestore Live Tracking
@@ -1609,28 +1611,17 @@ class WalletManager {
 
   rewardWin() {
     this.coins += this.WIN_REWARD;
-    this.trophies += this.TROPHY_WIN;
     this.save();
-    if (window.leaderboardManager) {
-      window.leaderboardManager.syncScoreToDatabase();
-    }
   }
 
   recordDraw() {
     this.coins += this.COIN_DRAW;
-    this.trophies += this.TROPHY_DRAW;
     this.save();
-    if (window.leaderboardManager) {
-      window.leaderboardManager.syncScoreToDatabase();
-    }
   }
 
   recordLoss() {
-    this.trophies = Math.max(0, this.trophies - this.TROPHY_LOSS);
+    // In casual matches, coins were already deducted upon match start (-20). Trophies are strictly arena-based.
     this.save();
-    if (window.leaderboardManager) {
-      window.leaderboardManager.syncScoreToDatabase();
-    }
   }
 
   creditAdReward() {
