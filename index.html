@@ -24,8 +24,9 @@
   <title>FURU - Zero Kaata</title>
   
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="apple-touch-icon" href="./icon.svg">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css?v=15.0">
+  <link rel="stylesheet" href="./style.css?v=15.4">
 
   <!-- Firebase SDK v10 (Compat version for Browser/Vanilla JS) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -43,7 +44,7 @@
     if ('caches' in window) {
       caches.keys().then(function(names) {
         names.forEach(function(n) {
-          if (n !== 'furu-v15.3-pro-cyberpunk') caches.delete(n);
+          if (n !== 'furu-v15.4-pro-cyberpunk') caches.delete(n);
         });
       });
     }
@@ -209,6 +210,18 @@
           <button class="symbol-chip active x" data-symbol="X">X</button>
           <button class="symbol-chip o" data-symbol="O">O</button>
         </div>
+      </div>
+
+      <div class="setting-row" id="install-setting-row" style="margin-top: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+        <div>
+          <div class="setting-label" style="display: flex; align-items: center; gap: 6px;">
+            <span>📲 Add to Home Screen</span>
+          </div>
+          <div class="setting-sublabel" id="install-sublabel">Phone screen pe app ki tarah install karein</div>
+        </div>
+        <button id="install-app-btn" class="btn-action btn-primary" style="padding: 8px 14px; font-size: 12px; white-space: nowrap; border-color: rgba(0, 240, 255, 0.4); background: rgba(0, 240, 255, 0.12); color: var(--neon-cyan); border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 600;">
+          <span>➕</span> Install
+        </button>
       </div>
 
       <div class="setting-row" style="margin-top: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
@@ -455,6 +468,9 @@
     </div>
   </div>
 
-  <script src="./game.js?v=15.3"></script>
+  <!-- Cyber Toast Notification -->
+  <div id="game-toast" class="game-toast"></div>
+
+  <script src="./game.js?v=15.4"></script>
 </body>
 </html>

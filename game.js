@@ -1,5 +1,53 @@
 // Zero Kaata - Modern Tic Tac Toe Game Engine
 
+// --- PWA Add to Home Screen & Cyber Toast Engine ---
+let deferredInstallPrompt = null;
+
+function showGameToast(message, duration = 3500) {
+  let toast = document.getElementById('game-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'game-toast';
+    toast.className = 'game-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => {
+    toast.classList.remove('show');
+  }, duration);
+}
+window.showGameToast = showGameToast;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent mini-infobar on mobile Chrome and save prompt
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('install-app-btn');
+  if (btn) {
+    btn.classList.add('pulse-glow-btn');
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('install-app-btn');
+  const sublabel = document.getElementById('install-sublabel');
+  if (btn) {
+    btn.innerHTML = '<span>✓</span> Installed';
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+    btn.style.borderColor = '#10b981';
+    btn.style.color = '#10b981';
+    btn.classList.remove('pulse-glow-btn');
+  }
+  if (sublabel) {
+    sublabel.textContent = 'App aapke phone screen par add ho chuki hai!';
+  }
+  showGameToast('🎉 App Home Screen par successfully add ho gaya!');
+});
+
 class SoundEngine {
   constructor() {
     this.ctx = null;
@@ -179,6 +227,7 @@ class TicTacToeGame {
     this.cacheDom();
     this.bindEvents();
     this.updateUI();
+    this.updateInstallStatus();
   }
 
   cacheDom() {
@@ -208,6 +257,9 @@ class TicTacToeGame {
     this.arenaBtn = document.getElementById('arena-btn');
     this.economyBar = document.getElementById('economy-bar') || document.querySelector('.economy-bar');
     this.practiceBar = document.getElementById('practice-bar');
+
+    this.installAppBtn = document.getElementById('install-app-btn');
+    this.installSublabel = document.getElementById('install-sublabel');
 
     this.streak = 0;
     this.streakPill = document.getElementById('streak-pill');
@@ -345,6 +397,58 @@ class TicTacToeGame {
           window.authManager.showArenaModal();
         }
       });
+    }
+
+    if (this.installAppBtn) {
+      this.installAppBtn.addEventListener('click', () => {
+        this.handleInstallToHomeScreen();
+      });
+    }
+  }
+
+  updateInstallStatus() {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (isStandalone && this.installAppBtn) {
+      this.installAppBtn.innerHTML = '<span>✓</span> Installed';
+      this.installAppBtn.disabled = true;
+      this.installAppBtn.style.opacity = '0.7';
+      this.installAppBtn.style.borderColor = '#10b981';
+      this.installAppBtn.style.color = '#10b981';
+      this.installAppBtn.classList.remove('pulse-glow-btn');
+      if (this.installSublabel) {
+        this.installSublabel.textContent = 'App already installed on Home Screen';
+      }
+    }
+  }
+
+  handleInstallToHomeScreen() {
+    this.sound.playClick();
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (isStandalone) {
+      showGameToast('✅ App pehle se hi Home Screen par installed hai!');
+      return;
+    }
+
+    if (deferredInstallPrompt) {
+      // Direct Chrome / Android permission dialog
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          showGameToast('📲 Adding to Home Screen...');
+          if (this.settingsModal) this.settingsModal.classList.remove('open');
+        } else {
+          showGameToast('Install request cancel kar di gayi');
+        }
+        deferredInstallPrompt = null;
+      });
+    } else {
+      // Fallback for iOS Safari or browsers without beforeinstallprompt
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIOS) {
+        showGameToast("📲 Safari me 'Share' (📤) daba kar 'Add to Home Screen' (+) chunein!", 4500);
+      } else {
+        showGameToast("📲 Browser menu (⋮) me jaakar 'Add to Home Screen' / 'Install App' chunein!", 4500);
+      }
     }
   }
 
